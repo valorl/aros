@@ -1,0 +1,20 @@
+size roomsize = s(10 10)
+room myroom roomsize
+
+coord obstcoord (1 1)
+size obstsize (3 4)
+obstacle obstcoord obstsize
+
+coord obstcoord = c(2 2)
+size obstsize = s(3 4)
+obstacle obstcoord obstsize
+
+obstacle c(8 8) s(1 1)
+
+coord robotstart c(1 1)
+robot myrobot robotstart 
+
+coord t1coord c(7 1)
+coord t2coord { t1coord + v(0 1) }
+coord t4coord { t1coord + v(0 3) }
+coord t3coord { betw t2coord t4coord 1 1 } # ratios, 50% between
