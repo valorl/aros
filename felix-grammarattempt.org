@@ -1,0 +1,32 @@
+uint -> [0-9]+
+int -> [-]?[0-9]+ | uint
+
+//Point is a reserved keyword equiv. to (0, 0)
+varname -> [a-z][a-zA-Z0-9_]* | "Point"
+
+factor = int | varname
+operator -> "+" | "-" | "/" | "*"
+operation ->
+  factor |
+  factor operator factor |
+  factor operator "(" operation ")"
+
+vector -> "(" operation "," operation ")"
+
+// I thought about defining arrays but I think that doesn't make sense
+// you just define the shape and that's that
+// it makes sense to fold on a shape
+// var optional if we redefine
+def -> ("var")? varname "=" (
+  (vector | varname)? "[" (varname "at" vector)+ "]" |
+  int |
+  operation
+)
+
+
+//just because it looks better than griddef -> (def)+
+griddef -> def | def griddef
+
+
+//temporarily until we start adding more functionality
+program -> griddef

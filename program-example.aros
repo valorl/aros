@@ -1,35 +1,30 @@
-size roomsize = s(10 10)
-room myroom roomsize
+var startx = 0
+var starty = 0
+var endx = 10
+var endy = 10
 
-coord obstcoord (1 1)
-size obstsize (3 4)
-obstacle obstcoord obstsize
+var sizeOfGrid = (endx, endy)
 
-coord obstcoord = c(2 2)
-size obstsize = s(3 4)
-obstacle obstcoord obstsize
+var hor_line = [
+  Point at (0,0)
+  Point at (0,1)
+  Point at (0,2)
+]
 
-obstacle c(8 8) s(1 1)
+var ver_line = [
+  Point at (0,0)
+  Point at (1,0)
+  Point at (2,0)
+]
 
-coord robotstart c(1 1)
-robot myrobot robotstart 
+var shelves = [
+  ver_line at (0,1)
+  hor_line at (0,0)
+  hor_line at (2,0)
+]
 
-coord t1coord c(7 1)
-coord t2coord { t1coord + v(0 1) }
-coord t4coord { t1coord + v(0 3) }
-coord t3coord { betw t2coord t4coord 1 1 } # ratios, 50% between
+var room = sizeOfGrid [
+  shelves at (1,1)
+  shelves at (startx - 5, starty - (10/2))
+]
 
-task t1 t1coord
-task t2 t2coord
-task t3 t3coord
-task t4 t4coord
-
-go robot t1coord
-exec robot "take"
-go robot t2coord
-exec robot "drop"
-go robot t3coord
-exec robot "take"
-go robot t4coord
-exec robot "drop"
-go robot c(10 10)
