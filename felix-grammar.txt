@@ -25,9 +25,11 @@ Vector ->
 // I thought about defining arrays but I think that doesn't make sense
 // you just define the shape and that's that
 // it makes sense to fold on a shape
+// enables anonymous shapes inside the shape
+Shape -> "[" ((identifier | Shape) "at" Vector)+ "]"
+
 Definition -> "var" identifier "=" (
- (Vector | identifier)? "[" (identifier "at" Vector)+ "]"
-| int
+ (Vector | identifier)? Shape
 | Operation
 )
 
