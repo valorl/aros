@@ -1,32 +1,38 @@
-uint -> [0-9]+
-int -> [-]?[0-9]+ | uint
+int -> [-]?[0-9]+
 
 //Point is a reserved keyword equiv. to (0, 0)
-varname -> [a-z][a-zA-Z0-9_]* | "Point"
+identifier ->
+  [a-z][a-zA-Z0-9_]*
+| "Point"
 
-factor = int | varname
+
+// can do 7 + 5 or x + y or (1,2)+(3,4)
+Factor = int | identifier | Vector
+
 operator -> "+" | "-" | "/" | "*"
-operation ->
-  factor |
-  factor operator factor |
-  factor operator "(" operation ")"
 
-vector -> "(" operation "," operation ")"
+
+Operation ->
+  Factor
+| Factor operator Factor
+| Factor operator "(" Operation ")"
+
+// (5+3, 6/2) or so that we can do hor_line at (3,2) + (1,4)
+Vector ->
+  "(" Operation "," Operation ")"
+| Operation
 
 // I thought about defining arrays but I think that doesn't make sense
 // you just define the shape and that's that
 // it makes sense to fold on a shape
-// var optional if we redefine
-def -> ("var")? varname "=" (
-  (vector | varname)? "[" (varname "at" vector)+ "]" |
-  int |
-  operation
+Definition -> "var" identifier "=" (
+ (Vector | identifier)? "[" (identifier "at" Vector)+ "]"
+| int
+| Operation
 )
 
-
-//just because it looks better than griddef -> (def)+
-griddef -> def | def griddef
+Griddef -> Definition | Definition Griddef
 
 
 //temporarily until we start adding more functionality
-program -> griddef
+Program -> Griddef
