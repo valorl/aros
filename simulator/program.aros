@@ -1,0 +1,13 @@
+# this is a comment
+# s = size of grid
+# w = wall size location
+# t = target element
+# b = beginning position for robot
+# i = input sequence
+
+s 10 10
+w 2 3 1 2
+w 1 1 8 8
+t 9 9
+b 0 0
+i DDDDRRRRUUULLDDDDD
