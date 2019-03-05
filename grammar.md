@@ -12,16 +12,22 @@ Factor = int | identifier | Vector
 
 operator -> "+" | "-" | "/" | "*"
 
+AOperation ->
+           Factor
+           | MOperation
+           | Factor ('+'|'-') (AOperation | MOperation)
+           | Factor ('+'|'-') '('(AOperation | MOperation)')'
 
-Operation ->
-  Factor
-| Factor operator Factor
-| Factor operator "(" Operation ")"
+MOperation ->
+           Factor
+           | Factor ('*'|'/') MOperation
+           | Factor ('*'|'/') '('MOperation')'
+
 
 // (5+3, 6/2) or so that we can do hor_line at (3,2) + (1,4)
 Vector ->
-  "(" Operation "," Operation ")"
-| Operation
+  "(" AOperation "," AOperation ")"
+| AOperation
 
 // I thought about defining arrays but I think that doesn't make sense
 // you just define the shape and that's that
@@ -31,7 +37,7 @@ Shape -> "[" ((identifier | Shape) "at" Vector)+ "]"
 
 Definition -> "var" identifier "=" (
  (Vector | identifier)? Shape
-| Operation
+| AOperation
 )
 
 Griddef -> Definition | Definition Griddef
