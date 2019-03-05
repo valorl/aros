@@ -1,3 +1,4 @@
+```
 int -> [-]?[0-9]+
 
 //Point is a reserved keyword equiv. to (0, 0)
@@ -38,3 +39,4 @@ Griddef -> Definition | Definition Griddef
 
 //temporarily until we start adding more functionality
 Program -> Griddef
+```
