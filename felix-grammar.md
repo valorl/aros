@@ -1,5 +1,5 @@
 ```
-int -> [-]?[0-9]+
+int -> [-]?[1-9][0-9]*
 
 //Point is a reserved keyword equiv. to (0, 0)
 identifier ->
