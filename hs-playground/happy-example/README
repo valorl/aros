@@ -32,4 +32,11 @@ $ ghc --make Calc
 this can be run
 ./Calc
 
-but I have no idea at the moment how to make it pipe anything out
+after writing your program, do ctrl-D to interrupt
+
+from file:
+$ echo "2 + 5" | ./Calc
+
+or
+
+$ cat myprogram.aros | ./Calc
