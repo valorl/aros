@@ -26,5 +26,5 @@ main = do
     s <- getContents
     let ast = parseCalc $ scanTokens s
     print ast
-    print (run ast)
+    print $ run ast
     
