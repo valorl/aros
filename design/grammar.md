@@ -10,7 +10,7 @@ identifier ::= [a-z][a-zA-Z0-9_]*
 
 ## The `point` keyword
 ```python
-point -> "point"
+point ::= "point"
 ```
 
 ## Operators
@@ -78,7 +78,7 @@ GridDef ::= (Declaration)* "grid" SShape
 
 ## Progam (root)
 ```python
-Program -> GridDef
+Program ::= GridDef
 ```
 
 #### Note
