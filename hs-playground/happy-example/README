@@ -16,12 +16,10 @@ $ happy Grammar.y
 
 play around:
 $ ghci
-then
 > :l Calc
-
-scanned = scanTokens "2 + 3"
-ast = parseCalc scanned
-run ast
+> scanned = scanTokens "2 + 3"
+> ast = parseCalc scanned
+> run ast
 
 (should output 5)
 
