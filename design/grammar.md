@@ -16,18 +16,18 @@
 ```
 IntExp ::= 
     | int
-    | "(" IExp ")"
-    | IExp op IExp
+    | "(" IntExp ")"
+    | IntExp op IExp
 ```
 
 ### Vector expressions
 ```
 VecExp ::= 
     | Vector
-    | "(" VExp ")"
-    | VExp op VExp
-    | IExp "*" VExp
-    | VExp "*" IExp
+    | "(" VecExp ")"
+    | VecExp op VExp
+    | IntExp "*" VecExp
+    | VecExp "*" IntExp
 ```
 
 ## Vectors
@@ -37,7 +37,7 @@ Vector ::= "(" IntExp "," IntExp ")"
 
 ## Shapes
 ### Unsized shape
-`UShape ::= "{" ( (identifier | Shape | point) "at" VExp )+ "}"`
+`UShape ::= "{" ( (identifier | Shape | point) "at" VecExp )+ "}"`
 
 ### Size vector
 `SVector ::= "[" IntExp "," IntExp "]"`
@@ -57,7 +57,7 @@ Declaration ::= "var" identifier "=" ( IntExp | VecExp | Shape )
 
 ## Grid
 ### Grid shape (forced to have size vector)
-`GridDef ::= (Declaration)* SShape`
+`GridDef ::= (Declaration)* "grid" SShape`
 
 ## Progam (root)
 `Program -> GridDef`
