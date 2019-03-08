@@ -1,83 +1,84 @@
 ## Integers
-```python
+```ebnf
 integer ::= [-]?[1-9][0-9]*
 ```
 
 ## Identifiers
-```python
+```ebnf
 identifier ::= [a-z][a-zA-Z0-9_]*
 ```
 
 ## The `point` keyword
-```python
+```ebnf
 point ::= "point"
 ```
 
 ## Operators
-```python
+```ebnf
 op ::= "+" | "-" | "/" | "*"
 ```
 
 ## Expressions
 
 ### Integer expressions
-```python
-IntExp ::= 
+```ebnf
+IExp ::= 
     | integer
-    | "(" IntExp ")"
-    | IntExp op IExp
+    | identifier
+    | "(" IExp ")"
+    | IExp op IExp
 ```
 
 ### Vector expressions
-```python
-VecExp ::= 
+```ebnf
+VExp ::= 
     | Vector
-    | "(" VecExp ")"
-    | VecExp op VExp
-    | IntExp "*" VecExp
-    | VecExp "*" IntExp
+    | identifier
+    | "(" VExp ")"
+    | VExp op VExp
+    | IExp "*" VExp
+    | VExp "*" IExp
 ```
 
 ## Vectors
-```python
-Vector ::= "(" IntExp "," IntExp ")"
+```ebnf
+Vector ::= "(" IExp "," IExp ")"
 ```
 
 ## Shapes
 ### Unsized shape
-```python
-UShape ::= "{" ( (identifier | Shape | point) "at" VecExp )+ "}"
+```ebnf
+UShape ::= "{" ( (identifier | Shape | point) "at" VExp )+ "}"
 ```
 
 ### Size vector
-```python
-SVector ::= "[" IntExp "," IntExp "]"
+```ebnf
+SVector ::= "[" IExp "," IExp "]"
 ```
 
 ### Sized shape
-```python
+```ebnf
 SShape ::= SVector UShape
 ```
 
 ### General shape
-```python
+```ebnf
 Shape ::= UShape | SShape
 ```
 
 ## Variable declaration
-```python
-Declaration ::= "var" identifier "=" ( IntExp | VecExp | Shape )
+```ebnf
+Declaration ::= "var" identifier "=" ( IExp | VExp | Shape )
 ```
-
 
 ## Grid
 ### Grid shape (forced to have size vector)
-```python
-GridDef ::= (Declaration)* "grid" SShape
+```ebnf
+GridDef ::= (Declaration)* | (Declaration)* "grid" SShape
 ```
 
 ## Progam (root)
-```python
+```ebnf
 Program ::= GridDef
 ```
 
