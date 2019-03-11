@@ -1,4 +1,3 @@
-
 Program -> GridDef .
 
 Op -> + .
@@ -6,42 +5,40 @@ Op -> - .
 Op -> * .
 Op -> / .
 
-IExp -> int .
-IExp -> id .
-IExp -> ( IExp ) .
+Operand -> int .
+Operand -> id .
 
-OIexp -> IExp .
-OIexp -> IExp Op OIexp .
+IExp -> Operand .
+IExp -> ( Operand Op IExp ) .
 
-Vector -> ( OIExp , OIExp ) .
+Vector -> ( IExp , IExp ) .
 
 VExp -> Vector .
 VExp -> id .
-VExp -> ( VExp ) .
-VExp -> OIExp * OVExp .
+VExp -> ( IExp * VExp ) .
 
 Shpdecl -> id at VExp .
 Shpdecl -> Shape at VExp .
 Shpdecl -> point at VExp .
 
-Mshpdecl -> Shpdecl .
-Mshpdecl -> Shpdecl Mshpdcl .
+Mshpdecl ->  Shpdecl ; .
+Mshpdecl -> Shpdecl , Mshpdecl .
 
 UShape -> { Mshpdecl } .
 
-SVector -> [ OIExp , OIExp ] .
+SVector -> [ IExp , IExp ] .
 
 SShape -> SVector UShape .
 
 Shape -> UShape .
 Shape -> SShape .
 
-Declaration -> var id = OIexp .
+Declaration -> var id = OIExp .
 Declaration -> var id = VExp .
 Declaration -> var id = Shape .
 
-mDeclaration -> Declaration .
-mDeclaration -> Declaration mDeclaration .
 
-GridDef -> mDeclaration .
+mDeclaration -> Declaration ; .
+mDeclaration -> Declaration , mDeclaration .
+
 GridDef -> mDeclaration grid SShape .
