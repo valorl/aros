@@ -20,8 +20,8 @@ Shpdecl -> id at VExp .
 Shpdecl -> Shape at VExp .
 Shpdecl -> point at VExp .
 
-Mshpdecl ->  Shpdecl .
-Mshpdecl -> Shpdecl Mshpdecl .
+Mshpdecl ->  Shpdecl ; .
+Mshpdecl -> Shpdecl , Mshpdecl .
 
 UShape -> { Mshpdecl } .
 
@@ -36,7 +36,7 @@ Declaration -> int id = IExp .
 Declaration -> vec id = VExp .
 Declaration -> shape id = Shape .
 
-mDeclaration -> Declaration .
-mDeclaration -> Declaration mDeclaration .
+mDeclaration -> Declaration ; .
+mDeclaration -> Declaration , mDeclaration .
 
 GridDef -> mDeclaration grid SShape .
