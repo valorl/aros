@@ -33,7 +33,7 @@ SShape -> SVector UShape .
 Shape -> UShape .
 Shape -> SShape .
 
-Declaration -> var id = OIExp .
+Declaration -> var id = IExp .
 Declaration -> var id = VExp .
 Declaration -> var id = Shape .
 
