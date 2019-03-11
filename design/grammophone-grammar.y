@@ -1,3 +1,5 @@
+Program -> GridDef .
+
 Op -> + .
 Op -> - .
 Op -> * .
@@ -41,4 +43,3 @@ Declaration -> var id = IExp .
     GridDef -> mDeclaration .
     GridDef -> mDeclaration grid SShape .
 
-    Program -> GridDef .
