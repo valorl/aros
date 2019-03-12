@@ -39,6 +39,8 @@ import Tokens
 
 %%
 
+GridDef : MDeclaration grid SShape  { GridDef $1 $3 }
+
 Op : '+'  { TokenPlus }
    | '-'  { TokenMinus }
    | '*'  { TokenTimes }
@@ -80,7 +82,6 @@ MDeclaration : Declaration ';'      { MDeclEnd $1 }
              | Declaration ',' MDeclaration { MDeclCont $1 $3 }
 
 
-GridDef : MDeclaration grid SShape  { GridDef $1 $3 }
 
 {
 
