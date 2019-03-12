@@ -11,11 +11,13 @@ tokens :-
 
   $white+                       ;
   "//".*                        ;
-  var                           { \s -> TokenVar }
+  int                           { \s -> TokenInt }
+  vec                           { \s -> TokenVec }
+  shape                         { \s -> TokenShape }
   at                            { \s -> TokenAt }
   grid                          { \s -> TokenGrid }
   Point                         { \s -> TokenPoint }
-  $digit+                       { \s -> TokenInt (read s) }
+  $digit+                       { \s -> TokenIntLit (read s) }
   \=                            { \s -> TokenEq }
   \+                            { \s -> TokenPlus }
   \-                            { \s -> TokenMinus }
@@ -28,6 +30,7 @@ tokens :-
   \[                            { \s -> TokenLBracket }
   \]                            { \s -> TokenRBracket }
   \,                            { \s -> TokenComma }
+  \;                            { \s -> TokenSemiColon }
   $alpha [$alpha $digit \_ \']* { \s -> TokenIdent s }
 
 {

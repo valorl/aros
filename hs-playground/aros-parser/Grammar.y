@@ -8,12 +8,13 @@ import Tokens
 %error { parseError }
 
 %token
-    var { TokenVar }
+    int { TokenInt }
+    vec { TokenVec }
+    shape { TokenShape }
     at  { TokenAt }
     grid { TokenGrid }
     Point { TokenPoint }
-    int { TokenInt $$ }
-    ident  { TokenIdent $$ }
+    intLiteral { TokenIntLit $$ }
     '=' { TokenEq }
     '+' { TokenPlus }
     '-' { TokenMinus }
@@ -25,7 +26,10 @@ import Tokens
     '}' { TokenRBrace }
     '[' { TokenLBracket }
     ']' { TokenRBracket }
+    ';' { TokenSemiColon }
     ',' { TokenComma }
+    id  { TokenIdent $$ }
+
 
 %right in
 %nonassoc '>' '<'
@@ -35,43 +39,48 @@ import Tokens
 
 %%
 
-operator : '+' | '-' | '*' | '/'
+Op : '+'  { TokenPlus }
+   | '-'  { TokenMinus }
+   | '*'  { TokenTimes }
+   | '/'  { TokenDiv }
 
-IntExp : int
-    | "(" IntExp ")"
-    | int operator IntExp
+IExp : intLiteral                   { intLiteral $1 }
+     | id                           { id $1 }
+     | '(' intLiteral Op IExp ')'   { IExpInt $2 $3 $4 }
+     | '(' id Op IExp ')'           { IExpId  $2 $3 $4 }
 
-Vector : "(" IntExp "," IntExp ")"
+Vector : '(' IExp ',' IExp ')'      { VectorLiteral $2 $4}
 
-VecExp :  Vector
-    | "(" VecExp ")"
-    | VecExp operator VecExp
-    | IntExp "*" VecExp
-    | VecExp "*" IntExp
+VExp : Vector                       { VExpVec $1 }
+     | id                           { VExpId  $1 }
+     | '(' IExp '*' VExp ')'        { VExpMult $2 $4 }
 
-UShape : '{' ( (ident | Shape | point) at (VecExp | ident) )+ '}'
-
-SVector : '[' IntExp ',' IntExp ']'
-
-Shape : UShape
-    | SVector UShape
-
-Declaration :
-    var identifier '=' ( IntExp | VecExp | Shape )
-
-OptRecDecl :
-
-GridDef : grid SShape
-    | Declaration grid SShape
+ShpDecl : id at VExp                { ShpDeclId  $1 $3 }
+        | Shape at VExp             { ShpDeclShp $1 $3 }
+        | Point at VExp             { ShpDeclPoint $3 }
 
 
-Factor : int                        { IntegerLiteral $1 }
-    | var ident                     { VarDecl $2 }
-    | Point                         { Vector 0 0 }
-    | '(' int ',' int ')'           { Vector $2 $4 }
+MShpDecl : ShpDecl ';'              { MShpDeclEnd  $1 }
+         | ShpDecl ',' MShpDecl     { MshpDeclCont $1 $3 }
+
+UShape : '{' MShpDecl '}'           { UShape $2 }
+
+SVector : '[' IExp ',' IExp ']'     { SVector $2 $4 }
+
+SShape : SVector UShape             { SShape $1 $2 }
+
+Shape : UShape                      { SUShape $1 }
+      | SShape                      { SSShape $1 }
+
+Declaration : int id '=' IExp       { DeclInt  $2 $4 }
+            | vec id '=' VExp       { DecVec   $2 $4 }
+            | shape id '=' Shape    { DecShape $2 $4 }
+
+MDeclaration : Declaration ';'      { MDeclEnd $1 }
+             | Declaration ',' MDeclaration { MDeclCont $1 $3 }
 
 
-
+GridDef : MDeclaration grid SShape  { GridDef $1 $3 }
 
 {
 
