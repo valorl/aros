@@ -1,0 +1,2 @@
+shape myShape = { Point at (1,1) }
+grid [5,5] { myShape at (1,2) }
