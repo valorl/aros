@@ -39,8 +39,11 @@ import Syntax
 
 %%
 
+Program :: { Program }
+Program : VarDecls GridDef                      { Program $1 $2 }
+
 GridDef :: { GridDef }
-GridDef : VarDecls grid SShape                  { GridDef $1 $3 }
+GridDef : grid SShape                           { GridDef $2 }
 
 Op :: { Op }
 Op : '+'                                        { Add }

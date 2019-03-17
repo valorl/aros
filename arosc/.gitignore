@@ -1,3 +1,4 @@
 .stack-work/
 arosc.cabal
 *~
+.dir-locals.el

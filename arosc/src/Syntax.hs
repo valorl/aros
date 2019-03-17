@@ -66,5 +66,8 @@ data VarDecl = IDecl String IExp            -- int myInt = 1
              | SDecl String Shape           -- shape myShape = { ... }
            deriving (Eq,Show)
 
-data GridDef = GridDef [VarDecl] Shape      -- ... grid [120,120] { ... }
+data GridDef = GridDef Shape      -- ... grid [120,120] { ... }
+           deriving (Eq,Show)
+
+data Program = Program [VarDecl] GridDef -- other defs later
            deriving (Eq,Show)
