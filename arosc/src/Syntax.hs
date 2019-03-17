@@ -10,6 +10,7 @@ data Token = TokenIntLit Int
            | TokenAt
            | TokenGrid
            | TokenPoint
+           | TokenEq
            | TokenPlus
            | TokenMinus
            | TokenTimes
