@@ -1,34 +1,36 @@
 {
 module Parser where
 import Syntax
+import Lexer
 }
 
-%name parseAros
-%tokentype { Token }
-%error { parseError }
+%name parse
+%tokentype { TokenState }
+%monad { Alex }
+%lexer { lexwrap } { TokenState _ TokenEOF }
+%error { happyError }
 
 %token
-    int { TokenInt }
-    vec { TokenVec }
-    shape { TokenShape }
-    at  { TokenAt }
-    grid { TokenGrid }
-    Point { TokenPoint }
-    intLiteral { TokenIntLit $$ }
-    '=' { TokenEq }
-    '+' { TokenPlus }
-    '-' { TokenMinus }
-    '*' { TokenTimes }
-    '/' { TokenDiv }
-    '(' { TokenLParen }
-    ')' { TokenRParen }
-    '{' { TokenLBrace }
-    '}' { TokenRBrace }
-    '[' { TokenLBracket }
-    ']' { TokenRBracket }
-    ';' { TokenSemiColon }
-    ',' { TokenComma }
-    id  { TokenIdent $$ }
+    int         { TokenState _ TokenInt }
+    vec         { TokenState _ TokenVec }
+    shape       { TokenState _ TokenShape }
+    at          { TokenState _ TokenAt }
+    grid        { TokenState _ TokenGrid }
+    Point       { TokenState _ TokenPoint }
+    intLiteral  { TokenState _ (TokenIntLit $$) }
+    '='         { TokenState _ TokenEq }
+    '+'         { TokenState _ TokenPlus }
+    '-'         { TokenState _ TokenMinus }
+    '*'         { TokenState _ TokenTimes }
+    '/'         { TokenState _ TokenDiv }
+    '('         { TokenState _ TokenLParen }
+    ')'         { TokenState _ TokenRParen }
+    '{'         { TokenState _ TokenLBrace }
+    '}'         { TokenState _ TokenRBrace }
+    '['         { TokenState _ TokenLBracket }
+    ']'         { TokenState _ TokenRBracket }
+    ','         { TokenState _ TokenComma }
+    id          { TokenState _ (TokenIdent $$) }
 
 
 %right in
@@ -41,6 +43,7 @@ import Syntax
 
 Program :: { Program }
 Program : VarDecls GridDef                      { Program $1 $2 }
+        | GridDef                               { Program [] $1 }
 
 GridDef :: { GridDef }
 GridDef : grid SShape                           { GridDef $2 }
@@ -85,7 +88,6 @@ SVector : '[' IExp ',' IExp ']'                 { SVector $2 $4 }
 SShape :: { Shape }
 SShape : SVector UShape                         { SShape $1 (unwrapUS $2) }
 
-
 Shape :: { Shape }
 Shape : UShape                                  { $1 }
       | SShape                                  { $1 }
@@ -106,7 +108,14 @@ VarDecls : VarDecl                              { [$1] }
 unwrapUS :: Shape -> [ShapeMan]
 unwrapUS (UShape mans) = mans
 
-parseError :: [Token] -> a
-parseError _ = error "Parse error"
+-- Happy stuff
+lexwrap :: (TokenState -> Alex a) -> Alex a
+lexwrap = (alexMonadScan' >>=)
 
+happyError :: TokenState -> Alex a
+happyError (TokenState p t) =
+    alexError' p ("parse error at token '" ++ unlex t ++ "'")
+
+parseAros :: FilePath -> String -> Either String Program
+parseAros = runLexAros parse
 }

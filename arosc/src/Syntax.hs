@@ -21,10 +21,17 @@ data Token = TokenIntLit Int
            | TokenRBrace
            | TokenLBracket
            | TokenRBracket
-           | TokenSemiColon
            | TokenComma
            | TokenIdent String
+           | TokenEOF
            deriving (Eq,Show)
+
+
+
+
+
+
+
 
 
 -- AST

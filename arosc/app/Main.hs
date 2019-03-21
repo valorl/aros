@@ -2,7 +2,6 @@ module Main where
 
 import System.Environment
 
-import Lexer (lexAros)
 import Parser (parseAros)
 
 import Text.Show.Pretty (ppShow, pPrint)
@@ -11,15 +10,10 @@ import Text.Show.Pretty (ppShow, pPrint)
 main :: IO ()
 main = do
   args <- getArgs
-  code <- case args of
-        (fp:_) -> readFile fp
-        [] -> getContents
-
-  let ast = (parseAros . lexAros) code
-  pPrint ast
-
-
-
-parseArgs :: [String] -> String
-parseArgs [] = error "Missing argument with path of file to compile."
-parseArgs (fp:_) = fp
+  result <- case args of
+              []  -> fmap (parseAros "<stdin>") getContents
+              [f] -> fmap (parseAros f) (readFile f)
+              _   -> error $ "Expected 0 or 1 arguments, but got " ++ (show $ length $ args)
+  either putStrLn pPrint result
+  -- let ast = (parseAros . lexAros) code
+  -- pPrint ast

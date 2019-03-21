@@ -1,7 +1,6 @@
 import Test.Hspec
 import Syntax
-import qualified Parser
-import qualified Lexer
+import Parser
 
 
 resDir = "test/resources/" :: FilePath
@@ -19,12 +18,13 @@ main = hspec $ do
 
 
   describe "Parsing" $ do
-    it "Basic shape declaration in grid def should parse correctly (01-simple-decl-and-grid)" $ do
-      code <- readFile (resDir ++ "01-simple-decl-and-grid.aros")
-      let ast = (Parser.parseAros . Lexer.lexAros) code
+    it "Basic shape declaration in grid def should parse correctly (simple-decl-and-grid)" $ do
+      let file = "simple-decl-and-grid.aros"
+      code <- readFile (resDir ++ file)
+      let (Right ast) = (parseAros file code)
       let correctAst = Program
                         [ SDecl
-                        "myShape" (UShape [ SMPoint (VVec (Vector (ILit 1) (ILit 1))) ])
+                         "myShape" (UShape [ SMPoint (VVec (Vector (ILit 1) (ILit 1))) ])
                         ]
                         (GridDef
                         (SShape
