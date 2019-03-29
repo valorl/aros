@@ -8,11 +8,6 @@ integer ::= [-]?[1-9][0-9]*
 identifier ::= [a-z][a-zA-Z0-9_]*
 ```
 
-## The `point` keyword
-```ebnf
-point ::= "point"
-```
-
 ## Operators
 ```ebnf
 op ::= "+" | "-" | "/" | "*"
@@ -37,7 +32,16 @@ VExp ::=
     | "(" VExp ")"
     | VExp op VExp
     | IExp "*" VExp
-    | VExp "*" IExp
+```
+
+### Shape expressions
+```ebnf
+SExp   ::= Shape
+        | identifier
+        | SExp "move" VExp
+        | SExp "join" SExp
+        | SExp "crop" VExp
+        | "(" SExp ")"
 ```
 
 ## Vectors
@@ -46,42 +50,28 @@ Vector ::= "(" IExp "," IExp ")"
 ```
 
 ## Shapes
-### Unsized shape
 ```ebnf
-UShape ::= "{" ( (identifier | Shape | point) "at" VExp )+ "}"
+Shape ::= "[" Vectors VExp "]"
 ```
 
-### Size vector
 ```ebnf
-SVector ::= "[" IExp "," IExp "]"
-```
-
-### Sized shape
-```ebnf
-SShape ::= SVector UShape
-```
-
-### General shape
-```ebnf
-Shape ::= UShape | SShape
+Vectors ::= VExp "," Vectors 
+        | VExp ","
+        | λ
 ```
 
 ## Variable declaration
 ```ebnf
-Declaration ::= "var" identifier "=" ( IExp | VExp | Shape )
+Declaration ::= "var" identifier "=" ( IExp | VExp | SExp )
 ```
 
 ## Grid
 ### Grid shape (forced to have size vector)
 ```ebnf
-GridDef ::= (Declaration)* | (Declaration)* "grid" SShape
+GridDef ::= (Declaration)* | (Declaration)* "grid" VExp SExp
 ```
 
 ## Progam (root)
 ```ebnf
 Program ::= GridDef
 ```
-
-#### Note
-*`Shape` and `Declaration`do **not*** allow brace-less declarations of one-line
-shapes in this grammar (I vote let's move this nice-to-have for later)*
