@@ -17,6 +17,7 @@ op ::= "+" | "-" | "/" | "*"
 ### Sets
 ```ebnf
 emptySet ::= "{" "}"
+emptyList   ::= "[" "]"
 ```
 
 ## Expressions
@@ -29,6 +30,26 @@ IExp ::=
     | "(" IExp ")"
     | IExp op IExp
 ```
+### Integer list expressions
+```ebnf
+IListExp ::= 
+        "[" [IExp ","]* IExp  "]"
+        | identifier
+        | emptyList
+        | "(" IListExp ")"
+        | IListExp "++" IListExp 
+```
+
+### Integer set expressions
+```ebnf
+ISetExp ::=  
+         "{" [IExp ","]* IExp "}"
+        | identifier
+        | emptySet
+        | "(" ISetExp ")"
+        | ISetExp "<>"  ISetExp
+        | ISetExp "><"  ISetExp
+```
 
 ### Vector expressions
 ```ebnf
@@ -40,15 +61,14 @@ VExp ::=
     | IExp "*" VExp
 ```
 
-### Integer set expressions
+### Vector list expressions
 ```ebnf
-ISetExp ::=  
-         "{" [IExp ","]* IExp "}"
+VListExp ::= 
+        "[" [VExp ","]* VExp  "]"
         | identifier
-        | emptySet
-        | "(" ISetExp ")"
-        | ISetExp "join"    ISetExp
-        | ISetExp "merge"   ISetExp
+        | emptyList
+        | "(" VListExp ")"
+        | VListExp "++" VListExp
 ```
 
 ### Vector set expressions
@@ -58,11 +78,11 @@ VSetExp ::=
         | identifier
         | emptySet
         | "(" VSetExp ")"
-        | VSetExp "join"    VSetExp
-        | VSetExp "merge"   VSetExp
-        | VSetExp "crop"    VExp
-        | VSetExp ->        VExp        
-        | VSetExp *         VExp 
+        | VSetExp "<>"    VSetExp
+        | VSetExp "><"    VSetExp
+        | VSetExp ">>"    VExp        
+        | VSetExp "*"     VExp 
+        | VSetExp "crop"  VExp
 ```
 
 ## Variable declaration
@@ -71,14 +91,16 @@ VSetExp ::=
 Declaration ::= 
               "int"     identifier "=" IExp
             | "vec"     identifier "=" VExp
-            | "[int]"   identifier "=" ISetExp
-            | "[vec]"   identifier "=" VSetExp
+            | "{int}"   identifier "=" ISetExp
+            | "{vec}"   identifier "=" VSetExp
+            | "[int]"   identifier "=" IListExp
+            | "[vec]"   identifier "=" VListExp
 ```
 
 ## Grid
 ### Grid shape (forced to have size vector)
 ```ebnf
-GridDef ::= (Declaration)* | (Declaration)* "grid" [VExp]? VSetExp
+GridDef ::= (Declaration)* | (Declaration)* "grid" VExp? VSetExp
 ```
 
 ## Progam (root)
