@@ -49,8 +49,6 @@ ISetExp ::=
         | "(" ISetExp ")"
         | ISetExp "join"    ISetExp
         | ISetExp "merge"   ISetExp
-        | ISetExp "shift"   IExp
-        | ISetExp "crop"    IExp 
 ```
 
 ### Vector set expressions
@@ -62,8 +60,9 @@ VSetExp ::=
         | "(" VSetExp ")"
         | VSetExp "join"    VSetExp
         | VSetExp "merge"   VSetExp
-        | VSetExp "shift"   VExp
         | VSetExp "crop"    VExp
+        | VSetExp ->        VExp        
+        | VSetExp *         VExp 
 ```
 
 ## Variable declaration
