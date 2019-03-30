@@ -1,0 +1,9 @@
+[vec] hor_line = {(0,0), (0,1), (0,2)}
+[vec] ver_line = {(0,0), (1,0), (2,0)}
+[vec] shelves  = (ver_line -> (0,1)) join 
+                 (hor_line -> (2,0)) join
+                 hor_line
+                
+[vec] room = (shelves -> (2.0)) join shelves
+
+grid room
