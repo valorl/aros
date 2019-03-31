@@ -1,5 +1,5 @@
 # Type a grammar here:
-Prog -> GridDef .
+Prog -> VExp .
 
 EmptySet -> { } .
 
@@ -52,7 +52,7 @@ VExpFactor -> < IExp , IExp > .
 VExpFactor -> identifier .
 VExpFactor -> ( VExp ) .
 
-####    VExp -> VExp ** IExp .
+VExp -> scale ( VExp  IExp ) .
 
 
 
@@ -72,6 +72,7 @@ BasicVSetExp -> EmptySet .
 VSetExp -> BasicVSetExp .
 VSetExp -> VSetExp <> BasicVSetExp .
 VSetExp -> VSetExp >< BasicVSetExp .
+VSetExp -> VSetExp >> VExp .
 VSetExp -> VSetExp scale VExp .
 VSetExp -> VSetExp crop VExp .
 
