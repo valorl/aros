@@ -52,7 +52,7 @@ VExpFactor -> < IExp , IExp > .
 VExpFactor -> identifier .
 VExpFactor -> ( VExp ) .
 
-VExp -> scale ( VExp  IExp ) .
+VExp -> VExp ** IExpFactor .
 
 
 
