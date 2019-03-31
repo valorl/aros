@@ -1,5 +1,5 @@
 # Type a grammar here:
-Prog -> VExp .
+Prog -> GridDef .
 
 EmptySet -> { } .
 
