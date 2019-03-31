@@ -40,6 +40,7 @@ VSFuncDef -> func ( FOrTList => {vec} ) identifier = ( IdList ) => { VSetExp } .
 PossibleFuncParameter -> integer .
 PossibleFuncParameter -> < integer , integer > .
 PossibleFuncParameter -> identifier .
+PossibleFuncParameter -> FuncAppl .
 PossibleFuncParameter -> < identifier , identifier > .
 
 FuncParameterList -> PossibleFuncParameter .
