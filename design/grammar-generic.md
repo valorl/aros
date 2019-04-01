@@ -52,10 +52,10 @@ Exp ::=
 
 ## Declarations
 ```ebnf
-Declaration     ::= Type identifier "=" Exp
+Args :== "(" [identifier ","]* identifier ")" | "(" ")"
 
-FuncDeclaration ::= Type identifier "=" "(" [identifier ","]* identifier ")" "->" "{" "let" Declaration* "in" Exp "}"
-                |   Type identifier "=" "(" ")" "->" "{" "let" Declaration* "in" Exp "}"
+Declaration     ::= Type identifier "=" Exp
+FuncDeclaration ::= Type identifier "=" Args "->" "{" Declaration* Exp "}"
 ```
 
 ## Grid
