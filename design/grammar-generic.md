@@ -8,7 +8,7 @@ identifier  ::= [a-z][a-zA-Z0-9_]*
 ## Operators
 ### Unary
 ```ebnf
-Uop     ::= "not" | "head" | "tail" 
+Uop     ::= "not" | "head" | "tail" | "vecx" | "vecy"
 ```
 
 ### Binary
