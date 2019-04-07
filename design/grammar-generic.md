@@ -1,17 +1,12 @@
 ## Terminals
 ### Integers
 ```ebnf
-integer ::= [-]?[1-9][0-9]*
-```
+boolean     ::= "true" | "false"
+integer     ::= [-]?[1-9][0-9]*
+identifier  ::= [a-z][a-zA-Z0-9_]*
 
-### Identifiers
-```ebnf
-identifier ::= [a-z][a-zA-Z0-9_]*
-```
-
-### Operators
-```ebnf
-op ::= "+" | "-" | "/" | "*"
+operator    ::= "+" | "-" | "/" | "*" | "++" | "<>" | "><" | ">>" | "crop" 
+            |   "and" | "or" | ">" | "<" | ">=" | "<=" | "==" | "!=" 
 ```
 
 ## Types
@@ -19,11 +14,10 @@ op ::= "+" | "-" | "/" | "*"
 ```ebnf
 Type ::= 
           "int" 
-        | "vec" 
-        | "[" int "]" 
-        | "[" vec "]" 
-        | "{" int "}" 
-        | "{" vec "}" 
+        | "vec"
+        | "bool"
+        | "[" Type "]" 
+        | "{" Type "}" 
         | "(" [Type ","]* Type "->" Type ")"
         | "(" "->" Type ")"
 ```
@@ -34,28 +28,32 @@ Type ::=
 Exp ::=
           identifier
         | integer
+        | boolean
+        | Exp ? Exp : Exp
         | "<" Exp "," Exp ">"
         | "[" [Exp ","]* Exp "]"
         | "[" "]"
         | "{" [Exp ","]* Exp "}"
         | "{" "}"
         | "(" Exp ")"
-        | Exp op     Exp
-        | Exp "++"   Exp
-        | Exp "<>"   Exp
-        | Exp "><"   Exp
-        | Exp ">>"   Exp
-        | Exp "crop" Exp
-        | identifier "(" [Exp* ","] Exp ")"
-        | identifier "(" ")"
+        | Exp operator Exp
+        | "!" Exp
+        | Lambda
+        | FunctionApplication
+```
+
+### Expression helpers
+```ebnf
+Args    ::= [identifier ","]* identifier | λ
+Params  ::= [Exp ","]* Exp | λ
+
+Lambda              ::= Args "->" "{" Declaration* Exp "}"
+FunctionApplication ::= [identifier | Lambda] "(" Params ")"
 ```
 
 ## Declarations
 ```ebnf
-Args :== "(" [identifier ","]* identifier ")" | "(" ")"
-
-Declaration     ::= Type identifier "=" Exp
-FuncDeclaration ::= Type identifier "=" Args "->" "{" Declaration* Exp "}"
+Declaration ::= Type identifier "=" Exp ";"
 ```
 
 ## Grid
