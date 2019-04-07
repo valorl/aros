@@ -1,14 +1,21 @@
 ## Terminals
-### Integers
 ```ebnf
 boolean     ::= "true" | "false"
 integer     ::= [-]?[1-9][0-9]*
 identifier  ::= [a-z][a-zA-Z0-9_]*
-
-operator    ::= "+" | "-" | "/" | "*" | "++" | "<>" | "><" | ">>" | "crop" 
-            |   "and" | "or" | ">" | "<" | ">=" | "<=" | "==" | "!=" 
 ```
 
+## Operators
+### Unary
+```ebnf
+Uop     ::= "not" | "head" | "tail" 
+```
+
+### Binary
+```ebnf
+Bop     ::= "+" | "-" | "/" | "*" | "++" | "<>" | "><" | ">>" | "crop" 
+        |   "and" | "or" | ">" | "<" | ">=" | "<=" | "==" | "!=" 
+```
 ## Types
 
 ```ebnf
@@ -29,25 +36,27 @@ Exp ::=
           identifier
         | integer
         | boolean
-        | Exp ? Exp : Exp
         | "<" Exp "," Exp ">"
         | "[" [Exp ","]* Exp "]"
         | "[" "]"
         | "{" [Exp ","]* Exp "}"
         | "{" "}"
         | "(" Exp ")"
-        | Exp operator Exp
-        | "!" Exp
+        | Exp Bop Exp
+        | Uop Exp
         | Lambda
         | FunctionApplication
+        | "if" "(" Exp ")" Block "else" Block
+        | "cond" "{" ["(" Exp ")" Block]+ "otherwise" Block "}" 
 ```
 
 ### Expression helpers
 ```ebnf
 Args    ::= [identifier ","]* identifier | λ
 Params  ::= [Exp ","]* Exp | λ
+Block   ::= "{" Declaration* Exp "}"
 
-Lambda              ::= Args "->" "{" Declaration* Exp "}"
+Lambda              ::= Args "->" Block
 FunctionApplication ::= [identifier | Lambda] "(" Params ")"
 ```
 
