@@ -46,17 +46,17 @@ Exp ::=
         | Uop Exp
         | Lambda
         | FunctionApplication
-        | "if" "(" Exp ")" Block "else" Block
-        | "cond" "{" ["(" Exp ")" Block]+ "otherwise" Block "}" 
+        | "if" "(" Exp ")" "{" Block "}" "else" "{" Block "}"
+        | "cond" "{" ["(" Exp ")" "{" Block "}"]+ "otherwise" "{" Block "}  " "}" 
 ```
 
 ### Expression helpers
 ```ebnf
 Args    ::= [identifier ","]* identifier | λ
 Params  ::= [Exp ","]* Exp | λ
-Block   ::= "{" Declaration* Exp "}"
 
-Lambda              ::= Args "->" Block
+Block   ::= Exp | Declaration Block
+Lambda              ::= Args "->" "{" Block "}"
 FunctionApplication ::= [identifier | Lambda] "(" Params ")"
 ```
 
