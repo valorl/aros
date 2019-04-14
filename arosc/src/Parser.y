@@ -5,32 +5,56 @@ import Lexer
 }
 
 %name parse
-%tokentype { TokenState }
-%monad { Alex }
-%lexer { lexwrap } { TokenState _ TokenEOF }
-%error { happyError }
+%tokentype       { TokenState }
+%monad           { Alex }
+%lexer           { lexwrap } { TokenState _ TokenEOF }
+%error           { happyError }
 
 %token
-    int         { TokenState _ TokenInt }
-    vec         { TokenState _ TokenVec }
-    shape       { TokenState _ TokenShape }
-    at          { TokenState _ TokenAt }
-    grid        { TokenState _ TokenGrid }
-    Point       { TokenState _ TokenPoint }
-    intLiteral  { TokenState _ (TokenIntLit $$) }
-    '='         { TokenState _ TokenEq }
-    '+'         { TokenState _ TokenPlus }
-    '-'         { TokenState _ TokenMinus }
-    '*'         { TokenState _ TokenTimes }
-    '/'         { TokenState _ TokenDiv }
-    '('         { TokenState _ TokenLParen }
-    ')'         { TokenState _ TokenRParen }
-    '{'         { TokenState _ TokenLBrace }
-    '}'         { TokenState _ TokenRBrace }
-    '['         { TokenState _ TokenLBracket }
-    ']'         { TokenState _ TokenRBracket }
-    ','         { TokenState _ TokenComma }
-    id          { TokenState _ (TokenIdent $$) }
+    intLiteral   { TokenState _ (TokenIntLit $$) }
+    boolLiteral  { TokenState _ (TokenBoolLit $$) }
+    not          { TokenState _ TokenNot }
+    head         { TokenState _ TokenHead }
+    tail         { TokenState _ TokenTail }
+    vecx         { TokenState _ TokenVecx }
+    vecy         { TokenState _ TokenVecy }
+    int          { TokenState _ TokenInt }
+    vec          { TokenState _ TokenVec }
+    bool         { TokenState _ TokenBool }
+    grid         { TokenState _ TokenGrid }
+    crop         { TokenState _ TokenCrop }
+    and          { TokenState _ TokenAnd }
+    or           { TokenState _ TokenOr }
+    'if'         { TokenState _ TokenIf }
+    'else'       { TokenState _ TokenElse }
+    cond         { TokenState _ TokenCond }
+    otherwise    { TokenState _ TokenOtherwise }
+    '->'         { TokenState _ TokenArrow }
+    '+'          { TokenState _ TokenPlus }
+    '-'          { TokenState _ TokenMinus }
+    '*'          { TokenState _ TokenTimes }
+    '/'          { TokenState _ TokenDiv }
+    ":"          { TokenState _ TokenColon }
+    '++'         { TokenState _ TokenDoublePlus }
+    '<>'         { TokenState _ TokenUnion }
+    '><'         { TokenState _ TokenIntersection }
+    '>>'         { TokenState _ TokenShift }
+    '>='         { TokenState _ TokenGte }
+    '<='         { TokenState _ TokenLte }
+    '>'          { TokenState _ TokenGt }
+    '<'          { TokenState _ TokenLt }
+    '=='         { TokenState _ TokenEq }
+    '!='         { TokenState _ TokenNeq }
+    '='          { TokenState _ TokenAssign }
+    '('          { TokenState _ TokenLParen }
+    ')'          { TokenState _ TokenRParen }
+    '{'          { TokenState _ TokenLBrace }
+    '}'          { TokenState _ TokenRBrace }
+    '['          { TokenState _ TokenLBracket }
+    ']'          { TokenState _ TokenRBracket }
+    ','          { TokenState _ TokenComma }
+    ';'          { TokenState _ TokenSemiColon }
+    id           { TokenState _ (TokenIdent $$) }
 
 
 %right in
@@ -41,66 +65,106 @@ import Lexer
 
 %%
 
-Program :: { Program }
-Program : VarDecls GridDef                      { Program $1 $2 }
-        | GridDef                               { Program [] $1 }
+Program : GridDef                                           {}
 
-GridDef :: { GridDef }
-GridDef : grid SShape                           { GridDef $2 }
-
-Op :: { Op }
-Op : '+'                                        { Add }
-   | '-'                                        { Sub }
-   | '*'                                        { Mul }
-   | '/'                                        { Div }
-
-IExp :: { IExp }
-IExp : intLiteral                               { ILit $1 }
-     | id                                       { IIdent $1 }
-     | '(' intLiteral Op IExp ')'               { IOp (ILit $2) $3 $4 }
-     | '(' id Op IExp ')'                       { IOp (IIdent $2) $3 $4 }
-
-Vector :: { Vector }
-Vector : '(' IExp ',' IExp ')'                  { Vector $2 $4}
-
-VExp :: { VExp }
-VExp : Vector                                   { VVec $1 }
-     | id                                       { VIdent $1 }
-     | '(' Vector Op VExp ')'                   { VOp (VVec $2) $3 $4 }
-     | '(' IExp '*' VExp ')'                    { VScaMul $2 $4 }
-
-ShapeManifest :: { ShapeMan }
-ShapeManifest : id at VExp                      { SMIdent $1 $3 }
-              | Shape at VExp                   { SMShape $1 $3 }
-              | Point at VExp                   { SMPoint $3 }
+Uop ::                                                      {}
+Uop : not                                                   {}
+  | head                                                    {}
+  | tail                                                    {}
+  | vecx                                                    {}
+  | vecy                                                    {}
 
 
-ShapeManifests :: { [ShapeMan] }
-ShapeManifests : ShapeManifest                  { [$1] }
-         | ShapeManifest ShapeManifests         { $1 : $2 }
+Bop ::                                                      {}
+Bop : '+'                                                   {}
+    | '-'                                                   {}
+    | '*'                                                   {}
+    | '/'                                                   {}
+    | ":"                                                   {}
+    | '++'                                                  {}
+    | '<>'                                                  {}
+    | '><'                                                  {}
+    | '>>'                                                  {}
+    | crop                                                  {}
+    | and                                                   {}
+    | or                                                    {}
 
-UShape :: { Shape }
-UShape : '{' ShapeManifests '}'                 { UShape $2 }
 
-SVector :: { SVector }
-SVector : '[' IExp ',' IExp ']'                 { SVector $2 $4 }
+TypeList ::                                                 {}
+TypeList : Type                                             {}
+         | Type ',' TypeList                                {}
 
-SShape :: { Shape }
-SShape : SVector UShape                         { SShape $1 (unwrapUS $2) }
+Type ::                                                     {}
+Type : int                                                  {}
+     | vec                                                  {}
+     | bool                                                 {}
+     | '[' Type ']'                                         {}
+     | '{' Type '}'                                         {}
+     | '(' '->' Type ')'                                    {}
+     | '(' TypeList '->' Type ')'                           {}
 
-Shape :: { Shape }
-Shape : UShape                                  { $1 }
-      | SShape                                  { $1 }
 
-VarDecl :: { VarDecl }
-VarDecl : int id '=' IExp                       { IDecl $2 $4 }
-        | vec id '=' VExp                       { VDecl $2 $4 }
-        | shape id '=' Shape                    { SDecl $2 $4 }
+ExpList ::                                                  {}
+ExpList : Exp                                               {}
+        | Exp ',' ExpList                                   {}
 
-VarDecls :: { [VarDecl] }
-VarDecls : VarDecl                              { [$1] }
-         | VarDecl VarDecls                     { $1 : $2 }
 
+ExpAndBlock ::                                              {}
+ExpAndBlock : Exp '{' Block '}'                             {}
+
+ExpAndBlockList ::                                          {}
+ExpAndBlockList : ExpAndBlock                               {}
+                | ExpAndBlock ExpAndBlockList               {}
+
+Declaration ::                                              {}
+Declaration : Type id '=' Exp ';'                           {}
+
+DeclarationList ::                                          {}
+DeclarationList : Declaration                               {}
+                | Declaration DeclarationList               {}
+
+Block ::                                                    {}
+Block : Exp                                                 {}
+      | Declaration Block                                   {}
+
+
+FunctionApplication ::                                      {}
+FunctionApplication : ExpT '(' ExpList ')'                  {}
+
+
+Exp : ExpU                                                  {}
+    | ExpU Bop Exp                                          {}
+
+ExpU : ExpT                                                 {}
+     | Uop ExpT                                             {}
+
+IdList : id                                                 {}
+       | IdList ',' id                                      {}
+
+ExpT ::                                                     {}
+ExpT : id                                                   {}
+    | intLiteral                                            {}
+    | boolLiteral                                           {}
+    | '<' Exp ',' Exp '>'                                   {}
+    | '[' ExpList ']'                                       {}
+    | '[' ']'                                               {}
+    | '{' ExpList '}'                                       {}
+    | '{' '}'                                               {}
+    | '(' IdList ')' '->' '{' Block '}'                     {}
+    | '(' ')' '->' '{' Block '}'                            {}
+    | FunctionApplication                                   {}
+    | 'if' Exp '{' Block '}' 'else' '{' Block '}'           {}
+    | cond '{' ExpAndBlockList otherwise '{' Block '}' '}'  {}
+    | '(' Exp '<' Exp ')'                                   {}
+    | '(' Exp '>' Exp ')'                                   {}
+    | '(' Exp '<=' Exp ')'                                  {}
+    | '(' Exp '>=' Exp ')'                                  {}
+    | '(' Exp '==' Exp ')'                                  {}
+    | '(' Exp '!=' Exp ')'                                  {}
+
+GridDef ::                                                  {}
+GridDef : grid Exp ',' Exp                                  {}
+        | DeclarationList grid Exp ',' Exp                  {}
 
 {
 
