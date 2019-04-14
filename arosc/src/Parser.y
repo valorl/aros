@@ -138,8 +138,12 @@ Exp : ExpU                                                  {}
 ExpU : ExpT                                                 {}
      | Uop ExpT                                             {}
 
-IdList : id                                                 {}
+IdList : id ',' id                                          {}
        | IdList ',' id                                      {}
+
+Lambda : '(' ')' '->' '{' Block '}'                         {}
+       | id '->' '{' Block '}'                              {}
+       | '(' IdList ')' '->' '{' Block '}'                  {}
 
 ExpT ::                                                     {}
 ExpT : id                                                   {}
@@ -150,9 +154,9 @@ ExpT : id                                                   {}
     | '[' ']'                                               {}
     | '{' ExpList '}'                                       {}
     | '{' '}'                                               {}
-    | '(' IdList ')' '->' '{' Block '}'                     {}
-    | '(' ')' '->' '{' Block '}'                            {}
+    | '(' Exp ')'                                           {}
     | FunctionApplication                                   {}
+    | Lambda                                                {}
     | 'if' Exp '{' Block '}' 'else' '{' Block '}'           {}
     | cond '{' ExpAndBlockList otherwise '{' Block '}' '}'  {}
     | '(' Exp '<' Exp ')'                                   {}
