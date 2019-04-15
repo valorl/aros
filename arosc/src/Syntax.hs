@@ -4,17 +4,40 @@ module Syntax where
 
 -- TOKENS
 data Token = TokenIntLit Int
+           | TokenBoolLit Bool
+           | TokenNot
+           | TokenHead
+           | TokenTail
+           | TokenVecx
+           | TokenVecy
            | TokenInt
            | TokenVec
-           | TokenShape
-           | TokenAt
+           | TokenBool
            | TokenGrid
-           | TokenPoint
-           | TokenEq
+           | TokenCrop
+           | TokenAnd
+           | TokenOr
+           | TokenIf
+           | TokenElse
+           | TokenCond
+           | TokenOtherwise
+           | TokenArrow
            | TokenPlus
            | TokenMinus
            | TokenTimes
            | TokenDiv
+           | TokenColon
+           | TokenDoublePlus
+           | TokenUnion
+           | TokenIntersection
+           | TokenShift
+           | TokenGte
+           | TokenLte
+           | TokenGt
+           | TokenLt
+           | TokenEq
+           | TokenNeq
+           | TokenAssign
            | TokenLParen
            | TokenRParen
            | TokenLBrace
@@ -22,19 +45,12 @@ data Token = TokenIntLit Int
            | TokenLBracket
            | TokenRBracket
            | TokenComma
+           | TokenSemiColon
            | TokenIdent String
            | TokenEOF
            deriving (Eq,Show)
 
 
-
-
-
-
-
-
-
--- AST
 
 data Op = Add | Sub | Mul | Div
            deriving (Eq,Show)
