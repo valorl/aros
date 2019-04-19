@@ -118,9 +118,9 @@ DeclarationList ::                                       { [Declaration] }
 DeclarationList : Declaration                            { [$1] }
                 | Declaration DeclarationList            { $1 : $2 }
 
-Block ::                                                 { [Declaration] Exp }
-Block : Exp                                              { [] $1 }
-      | Declaration Block                                { case $2 of l e -> ( $1 : l ) e}
+Block ::                                                 { Block }
+Block : Exp                                              { ABlock [] $1 }
+      | Declaration Block                                { case $2 of (ABlock l e) -> ABlock ( $1 : l ) e}
 
 
 
@@ -136,10 +136,10 @@ IdList ::                                                { [String] }
 IdList : id ',' id                                       { [$1, $3] }
        | id ',' IdList                                   { $1 : $3 }
 
-Lambda ::                                                { [String] Block }
-Lambda : '(' ')' '->' '{' Block '}'                      { [] $5 }
-       | id '->' '{' Block '}'                           { [$1] $4 }
-       | '(' IdList ')' '->' '{' Block '}'               { $2 $6 }
+Lambda ::                                                { LambdaExp [String] Block }
+Lambda : '(' ')' '->' '{' Block '}'                      { LambdaExp [] $5 }
+       | id '->' '{' Block '}'                           { LambdaExp [$1] $4 }
+       | '(' IdList ')' '->' '{' Block '}'               { LambdaExp $2 $6 }
 
 ExpT ::                                                  { Exp }
 ExpT : id                                                { Ident $1 }
@@ -152,7 +152,7 @@ ExpT : id                                                { Ident $1 }
     | '{' '}'                                            { SetExp [] }
     | '(' Exp ')'                                        { $2 } --is this ok?
     | ExpT '(' ExpList ')'                               { FunctionAppl $1 $3 }
-    | Lambda                                             { case $1 of s b -> LambdaExp s b }
+    | Lambda                                             { $1 }
     | 'if' Exp '{' Block '}' 'else' '{' Block '}'        { IfExp $2 $4 $8 }
     | cond '{' ExpBlockList otherwise '{' Block '}' '}'  { CondExp $3 $6 }
     | '(' Exp '<' Exp ')'                                { Bopped $2 Lt $4  }

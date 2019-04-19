@@ -87,7 +87,7 @@ data Type = TypeInt
 
 data Declaration = Decl String Exp deriving Show
 
-data Block = ExpBlock [Declaration] Exp
+data Block = ABlock [Declaration] Exp
   deriving Show
 
 data ExpBlock = Exp Block
