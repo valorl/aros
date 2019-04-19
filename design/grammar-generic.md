@@ -46,17 +46,17 @@ Exp ::=
         | Uop Exp
         | Lambda
         | FunctionApplication
-        | "if" "(" Exp ")" "{" Block "}" "else" "{" Block "}"
-        | "cond" "{" ["(" Exp ")" "{" Block "}"]+ "otherwise" "{" Block "}  " "}" 
+        | "if" "(" Exp ")" Block "else" Block
+        | "cond" "{" ["(" Exp ")" Block]+ "otherwise" Block "}" 
 ```
 
 ### Expression helpers
 ```ebnf
 Args    ::= [identifier ","]* identifier | λ
 Params  ::= [Exp ","]* Exp | λ
+Block   ::= "{" Declaration* Exp "}"
 
-Block   ::= Exp | Declaration Block
-Lambda              ::= Args "->" "{" Block "}"
+Lambda              ::= Args "->" Block
 FunctionApplication ::= [identifier | Lambda] "(" Params ")"
 ```
 
@@ -67,7 +67,7 @@ Declaration ::= Type identifier "=" Exp ";"
 
 ## Grid
 ```ebnf
-GridDef ::= (Declaration | FuncDeclaration)* "grid" Exp Exp
+GridDef     ::= Declaration* "grid" Exp Exp
 ```
 
 ## Progam (root)
