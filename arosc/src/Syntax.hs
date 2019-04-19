@@ -100,7 +100,7 @@ data Exp = Ident String
   | ListExp [Exp]
   | SetExp [Exp]
   | Bopped Exp Bop Exp
-  | Uopped Bop Exp
+  | Uopped Uop Exp
   | LambdaExp [String] Block
   | FunctionAppl Exp [Exp]
   | IfExp Exp Block Block
