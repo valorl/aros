@@ -87,10 +87,10 @@ data Type = TypeInt
 
 data Declaration = Decl String Exp deriving Show
 
-data Block = ABlock [Declaration] Exp
+data Block = Block [Declaration] Exp
   deriving Show
 
-data ExpBlock = Exp Block
+data ExpBlock = ExpBlock Exp Block
   deriving Show
 
 data Exp = Ident String

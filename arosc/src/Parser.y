@@ -119,8 +119,8 @@ DeclarationList : Declaration                            { [$1] }
                 | Declaration DeclarationList            { $1 : $2 }
 
 Block ::                                                 { Block }
-Block : Exp                                              { ABlock [] $1 }
-      | Declaration Block                                { case $2 of (ABlock l e) -> ABlock ( $1 : l ) e}
+Block : Exp                                              { Block [] $1 }
+      | Declaration Block                                { case $2 of (Block l e) -> Block ( $1 : l ) e}
 
 
 
