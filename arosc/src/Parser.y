@@ -65,116 +65,109 @@ import Lexer
 
 %%
 
-Program : GridDef                                           {}
+Program : GridDef                                           { $1 }
 
-Uop ::                                                      {}
-Uop : not                                                   {}
-  | head                                                    {}
-  | tail                                                    {}
-  | vecx                                                    {}
-  | vecy                                                    {}
-
-
-Bop ::                                                      {}
-Bop : '+'                                                   {}
-    | '-'                                                   {}
-    | '*'                                                   {}
-    | '/'                                                   {}
-    | ":"                                                   {}
-    | '++'                                                  {}
-    | '<>'                                                  {}
-    | '><'                                                  {}
-    | '>>'                                                  {}
-    | crop                                                  {}
-    | and                                                   {}
-    | or                                                    {}
+Uop : not                                                   {Not}
+  | head                                                    {Head}
+  | tail                                                    {Tail}
+  | vecx                                                    {Vecx}
+  | vecy                                                    {Vecy}
 
 
-TypeList ::                                                 {}
-TypeList : Type                                             {}
-         | Type ',' TypeList                                {}
-
-Type ::                                                     {}
-Type : int                                                  {}
-     | vec                                                  {}
-     | bool                                                 {}
-     | '[' Type ']'                                         {}
-     | '{' Type '}'                                         {}
-     | '(' '->' Type ')'                                    {}
-     | '(' TypeList '->' Type ')'                           {}
-
-
-ExpList ::                                                  {}
-ExpList : Exp                                               {}
-        | Exp ',' ExpList                                   {}
+Bop : '+'                                                   {Plus}
+    | '-'                                                   {Minus}
+    | '*'                                                   {Times}
+    | '/'                                                   {Div}
+    | ":"                                                   {Colon}
+    | '++'                                                  {PlusPlus}
+    | '<>'                                                  {Union}
+    | '><'                                                  {Intersection}
+    | '>>'                                                  {Shift}
+    | crop                                                  {Crop}
+    | and                                                   {And}
+    | or                                                    {Or}
 
 
-ExpAndBlock ::                                              {}
-ExpAndBlock : Exp '{' Block '}'                             {}
+TypeList :: { [Type] }
+TypeList : Type                                             { [$1] }
+         | Type ',' TypeList                                { $1 : $3 }
 
-ExpAndBlockList ::                                          {}
-ExpAndBlockList : ExpAndBlock                               {}
-                | ExpAndBlock ExpAndBlockList               {}
-
-Declaration ::                                              {}
-Declaration : Type id '=' Exp ';'                           {}
-
-DeclarationList ::                                          {}
-DeclarationList : Declaration                               {}
-                | Declaration DeclarationList               {}
-
-Block ::                                                    {}
-Block : Exp                                                 {}
-      | Declaration Block                                   {}
+Type : int                                                  {TypeInt}
+     | vec                                                  {TypeVec}
+     | bool                                                 {TypeBool}
+     | '[' Type ']'                                         {TypeList $2}
+     | '{' Type '}'                                         {TypeSet $2}
+     | '(' '->' Type ')'                                    {TypeLambdaNoParam $3}
+     | '(' TypeList '->' Type ')'                           {TypeLambda $2 $4}
 
 
-FunctionApplication ::                                      {}
-FunctionApplication : ExpT '(' ExpList ')'                  {}
+ExpList ::                                                  {[Exp]}
+ExpList : Exp                                               {[$1]}
+        | Exp ',' ExpList                                   {$1 : $3}
 
 
-Exp : ExpU                                                  {}
-    | ExpU Bop Exp                                          {}
+ExpBlock : Exp '{' Block '}'                             { ExpBlock $1 $3 }
 
-ExpU : ExpT                                                 {}
-     | Uop ExpT                                             {}
+ExpBlockList ::                                          {[ExpBlock]}
+ExpBlockList : ExpBlock                                  {[$1]}
+             | ExpBlock ExpBlockList                     {$1 : $2}
 
-IdList : id ',' id                                          {}
-       | IdList ',' id                                      {}
+Declaration : Type id '=' Exp ';'                           {Decl $2 $4}
 
-Lambda : '(' ')' '->' '{' Block '}'                         {}
-       | id '->' '{' Block '}'                              {}
-       | '(' IdList ')' '->' '{' Block '}'                  {}
+DeclarationList :: { [Declaration] }
+DeclarationList : Declaration                               {[$1]}
+                | Declaration DeclarationList               {$1 : $2}
 
-ExpT ::                                                     {}
-ExpT : id                                                   {}
-    | intLiteral                                            {}
-    | boolLiteral                                           {}
-    | '<' Exp ',' Exp '>'                                   {}
-    | '[' ExpList ']'                                       {}
-    | '[' ']'                                               {}
-    | '{' ExpList '}'                                       {}
-    | '{' '}'                                               {}
-    | '(' Exp ')'                                           {}
-    | FunctionApplication                                   {}
-    | Lambda                                                {}
-    | 'if' Exp '{' Block '}' 'else' '{' Block '}'           {}
-    | cond '{' ExpAndBlockList otherwise '{' Block '}' '}'  {}
-    | '(' Exp '<' Exp ')'                                   {}
-    | '(' Exp '>' Exp ')'                                   {}
-    | '(' Exp '<=' Exp ')'                                  {}
-    | '(' Exp '>=' Exp ')'                                  {}
-    | '(' Exp '==' Exp ')'                                  {}
-    | '(' Exp '!=' Exp ')'                                  {}
+Block ::                                                    { [Declaration] Exp }
+Block : Exp                                                 { [] $1 }
+      | Declaration Block                                   { case $2 of l e -> ( $1 : l ) e}
 
-GridDef ::                                                  {}
-GridDef : grid Exp ',' Exp                                  {}
-        | DeclarationList grid Exp ',' Exp                  {}
+
+
+Exp :: { Exp }
+Exp : ExpU                                                  {$1}
+    | ExpU Bop Exp                                          {Bopped $1 $2 $3}
+
+ExpU :: { Exp }
+ExpU : ExpT                                                 {$1}
+     | Uop ExpT                                             {Uopped $1 $2}
+
+IdList :: { [String] }
+IdList : id ',' id                                          {[$1, $3]}
+       | id ',' IdList                                      { $1 : $3 }
+
+Lambda :: {[String] Block}
+Lambda : '(' ')' '->' '{' Block '}'                         { [] $5 }
+       | id '->' '{' Block '}'                              { [$1] $4 }
+       | '(' IdList ')' '->' '{' Block '}'                  { $2 $6 }
+
+ExpT :: { Exp }
+ExpT : id                                                   { Ident $1 }
+    | intLiteral                                            { IntLit $1 }
+    | boolLiteral                                           { BoolLit $1 }
+    | '<' Exp ',' Exp '>'                                   { Vec $2 $4 }
+    | '[' ExpList ']'                                       { ListExp $2 }
+    | '[' ']'                                               { ListExp [] }
+    | '{' ExpList '}'                                       { SetExp $2 }
+    | '{' '}'                                               { SetExp [] }
+    | '(' Exp ')'                                           { $2 } --is this ok?
+    | ExpT '(' ExpList ')'                                  { FunctionAppl $1 $3 }
+    | Lambda                                                { case $1 of s b -> LambdaExp s b }
+    | 'if' Exp '{' Block '}' 'else' '{' Block '}'           { IfExp $2 $4 $8 }
+    | cond '{' ExpBlockList otherwise '{' Block '}' '}'     { CondExp $3 $6 }
+    | '(' Exp '<' Exp ')'                                   { Bopped $2 Lt $4  }
+    | '(' Exp '>' Exp ')'                                   { Bopped $2 Gt $4 }
+    | '(' Exp '<=' Exp ')'                                  { Bopped $2 Lte $4 }
+    | '(' Exp '>=' Exp ')'                                  { Bopped $2 Gte $4 }
+    | '(' Exp '==' Exp ')'                                  { Bopped $2 Equal $4 }
+    | '(' Exp '!=' Exp ')'                                  { Bopped $2 Nequal $4 }
+
+GridDef ::                                                  { Program }
+GridDef : grid Exp ',' Exp                                  { Prog [] $2 $4 }
+        | DeclarationList grid Exp ',' Exp                  { Prog $1 $3 $5 }
 
 {
 
--- unwraps an unsized shape so we can parse a sized shape directly
-unwrapUS :: Shape -> [ShapeMan]
-unwrapUS (UShape mans) = mans
 
 -- Happy stuff
 lexwrap :: (TokenState -> Alex a) -> Alex a
