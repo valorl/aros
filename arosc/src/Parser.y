@@ -160,7 +160,7 @@ ExpT : id                                                { Ident $1 }
     | '(' Exp '<=' Exp ')'                               { Bopped $2 Lte $4 }
     | '(' Exp '>=' Exp ')'                               { Bopped $2 Gte $4 }
     | '(' Exp '==' Exp ')'                               { Bopped $2 Equal $4 }
-    | '(' Exp '!=' Exp ')'                               { Bopped $2 Nequal $4 }
+    | '(' Exp '!=' Exp ')'                               { Bopped $2 NEqual $4 }
 
 GridDef ::                                               { Program }
 GridDef : grid Exp ',' Exp                               { Prog [] $2 $4 }
