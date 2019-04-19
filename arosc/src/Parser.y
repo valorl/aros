@@ -136,7 +136,7 @@ IdList ::                                                { [String] }
 IdList : id ',' id                                       { [$1, $3] }
        | id ',' IdList                                   { $1 : $3 }
 
-Lambda ::                                                { LambdaExp [String] Block }
+Lambda ::                                                { Exp }
 Lambda : '(' ')' '->' '{' Block '}'                      { LambdaExp [] $5 }
        | id '->' '{' Block '}'                           { LambdaExp [$1] $4 }
        | '(' IdList ')' '->' '{' Block '}'               { LambdaExp $2 $6 }
