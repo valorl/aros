@@ -1,5 +1,3 @@
--- |
-
 module Syntax where
 
 -- TOKENS
@@ -51,15 +49,15 @@ data Token = TokenIntLit Int
            deriving (Eq,Show)
 
 
-data Uop = Not | Head | Tail | Vecx | Vecy
+data UnaryOp = Not | Head | Tail | Vecx | Vecy
          deriving (Eq, Show)
 
-data Bop = Plus
+data BinaryOp = Plus
   | Minus
   | Times
   | Div
-  | Colon
-  | PlusPlus
+  | Cons
+  | Append
   | Union
   | Intersection
   | Shift
@@ -71,44 +69,41 @@ data Bop = Plus
   | Gte
   | Lte
   | Equal
-  | NEqual
+  | NotEqual
   deriving (Eq, Show)
 
 
-data Type = TypeInt
+data DeclType = TypeInt
   | TypeVec
   | TypeBool
-  | TypeList Type
-  | TypeSet Type
-  | TypeLambda [Type] Type
-  | TypeLambdaNoParam Type
+  | TypeList DeclType
+  | TypeSet DeclType
+  | TypeLambda [DeclType] DeclType
   deriving (Eq, Show)
 
 
-data Declaration = Decl String Exp deriving Show
+data Declaration = Decl DeclType String Exp
+  deriving (Eq, Show)
 
 data Block = Block [Declaration] Exp
-  deriving Show
+  deriving (Eq, Show)
 
-data ExpBlock = ExpBlock Exp Block
-  deriving Show
-
-data Exp = Ident String
-  | IntLit Int
-  | BoolLit Bool
-  | Vec Exp Exp
+data Exp = VariableExp String
+  | ParenExp Exp
+  | IntegerExp Int
+  | BooleanExp Bool
+  | VectorExp Exp Exp
   | ListExp [Exp]
   | SetExp [Exp]
-  | Bopped Exp Bop Exp
-  | Uopped Uop Exp
+  | BinaryExp Exp BinaryOp Exp
+  | UnaryExp UnaryOp Exp
   | LambdaExp [String] Block
-  | FunctionAppl Exp [Exp]
+  | ApplicationExp Exp [Exp]
   | IfExp Exp Block Block
-  | CondExp [ExpBlock] Block
-  deriving Show
+  | CondExp [(Exp, Block)] Block
+  deriving (Eq, Show)
 
-data Program = Prog [Declaration] Exp Exp
-
-
-
-
+data GridDef = GridDef Exp Exp
+  deriving (Eq, Show)
+data Program = Program [Declaration] GridDef
+  deriving (Eq, Show)
