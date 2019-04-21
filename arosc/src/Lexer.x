@@ -13,7 +13,7 @@ tokens :-
   " "+                              ;
   "//".*                            ;
   [\-]?[1-9][0-9]*    { lexInputTkn (TokenIntLit . read) }
-  true|false          { lexinputtkn TokenBoolLit }
+  true|false          { lexInputTkn ( TokenBoolLit . (== "true")) }
   not                 { lexTkn TokenNot }
   head                { lexTkn TokenHead }
   tail                { lexTkn TokenTail }
@@ -47,19 +47,19 @@ tokens :-
   "=="                { lexTkn TokenEq }
   "!="                { lexTkn TokenNeq }
   "="                 { lexTkn TokenAssign }
-  "("                 { lexTkn TokenLparen }
-  ")"                 { lexTkn TokenRparen }
-  "{"                 { lexTkn TokenLbrace }
-  "}"                 { lexTkn TokenRbrace }
-  "["                 { lexTkn TokenLbracket }
-  "]"                 { lexTkn TokenRbracket }
+  "("                 { lexTkn TokenLParen }
+  ")"                 { lexTkn TokenRParen }
+  "{"                 { lexTkn TokenLBrace }
+  "}"                 { lexTkn TokenRBrace }
+  "["                 { lexTkn TokenLBracket }
+  "]"                 { lexTkn TokenRBracket }
   ","                 { lexTkn TokenComma }
   ";"                 { lexTkn TokenSemiColon }
   [a-z][a-zA-Z0-9_]*  { lexInputTkn TokenIdent }
 
 {
 
-unlex :: Token        -> string
+unlex :: Token        -> String
 unlex (TokenIntLit i)    = show i
 unlex (TokenBoolLit i)   = show i
 unlex TokenNot           = "not"
@@ -95,10 +95,10 @@ unlex TokenLte           = "<="
 unlex TokenEq            = "=="
 unlex TokenNeq           = "!="
 unlex TokenAssign        = "="
-unlex TokenLparen        = "("
-unlex TokenRparen        = ")"
-unlex TokenLbrace        = "{"
-unlex TokenRbrace        = "}"
+unlex TokenLParen        = "("
+unlex TokenRParen        = ")"
+unlex TokenLBrace        = "{"
+unlex TokenRBrace        = "}"
 unlex TokenLBracket      = "["
 unlex TokenRBracket      = "]"
 unlex TokenComma         = ","
@@ -131,6 +131,8 @@ lexInputTkn f = \(p,_,_,s) i -> return $ TokenState p (f (take i s))
 lexTkn :: Token -> AlexAction TokenState
 lexTkn = lexInputTkn . const
 
+stringToBool :: String -> Bool
+stringToBool b = b == "true"
 
 alexMonadScan' :: Alex TokenState
 alexMonadScan' = do
