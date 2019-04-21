@@ -90,12 +90,6 @@ Bop : '+'                                                { Plus }
     | crop                                               { Crop }
     | and                                                { And }
     | or                                                 { Or }
-    | '>'                                                { Gt }
-    | '<'                                                { Lt }
-    | '>='                                               { Gte }
-    | '<='                                               { Lte }
-    | '=='                                               { Equal }
-    | '!='                                               { NotEqual }
 
 
 TypeList ::                                              { [DeclType] }
