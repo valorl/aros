@@ -59,6 +59,7 @@ import Lexer
 
 %right in
 %nonassoc '>' '<'
+%left ':' '++' '<>' '><' '>>' crop and or
 %left '+' '-'
 %left '*' '/'
 %left NEG
@@ -80,8 +81,6 @@ Uop : not                                                { Not }
 Bop ::                                                   { BinaryOp }
 Bop : '+'                                                { Plus }
     | '-'                                                { Minus }
-    | '*'                                                { Times }
-    | '/'                                                { Div }
     | ':'                                                { Cons }
     | '++'                                               { Append }
     | '<>'                                               { Union }
@@ -90,6 +89,7 @@ Bop : '+'                                                { Plus }
     | crop                                               { Crop }
     | and                                                { And }
     | or                                                 { Or }
+
 
 
 TypeList ::                                              { [DeclType] }
@@ -128,14 +128,18 @@ Block : Exp                                              { Block [] $1 }
       | Declaration Block                                { let (Block l e) = $2 in (Block ( $1 : l ) e)}
 
 
-
 Exp ::                                                   { Exp }
-Exp : ExpU                                               { $1 }
-    | ExpU Bop Exp                                       { BinaryExp $1 $2 $3 }
+Exp : ExpA                                               { $1 }
+    | ExpA Bop Exp                                       { BinaryExp $1 $2 $3 }
 
-ExpU ::                                                  { Exp }
-ExpU : ExpT                                              { $1 }
-     | Uop ExpT                                          { UnaryExp $1 $2 }
+ExpA ::                                                  { Exp }
+ExpA : ExpB                                              { $1 }
+     | ExpB '*' ExpA                                     { BinaryExp $1 Times $3 }
+     | ExpB '/' ExpA                                     { BinaryExp $1 Div $3 }
+
+ExpB ::                                                  { Exp }
+ExpB : ExpC                                              { $1 }
+     | Uop ExpC                                          { UnaryExp $1 $2 }
 
 IdList ::                                                { [String] }
 IdList : id ',' id                                       { [$1, $3] }
@@ -146,8 +150,8 @@ Lambda : '(' ')' '->' '{' Block '}'                      { LambdaExp [] $5 }
        | id '->' '{' Block '}'                           { LambdaExp [$1] $4 }
        | '(' IdList ')' '->' '{' Block '}'               { LambdaExp $2 $6 }
 
-ExpT ::                                                  { Exp }
-ExpT : id                                                { VariableExp $1 }
+ExpC ::                                                  { Exp }
+ExpC : id                                                { VariableExp $1 }
     | intLiteral                                         { IntegerExp $1 }
     | boolLiteral                                        { BooleanExp $1 }
     | '<' Exp ',' Exp '>'                                { VectorExp $2 $4 }
@@ -156,7 +160,7 @@ ExpT : id                                                { VariableExp $1 }
     | '{' ExpList '}'                                    { SetExp $2 }
     | '{' '}'                                            { SetExp [] }
     | '(' Exp ')'                                        { ParenExp $2 }
-    | ExpT '(' ExpList ')'                               { ApplicationExp $1 $3 }
+    | ExpC '(' ExpList ')'                               { ApplicationExp $1 $3 }
     | Lambda                                             { $1 }
     | 'if' Exp '{' Block '}' 'else' '{' Block '}'        { IfExp $2 $4 $8 }
     | cond '{' ExpBlockList otherwise '{' Block '}' '}'  { CondExp $3 $6 }
