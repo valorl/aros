@@ -16,11 +16,25 @@ checkExp env exp =
   case exp of
 
     IntegerExp _ -> TInteger
+
     BooleanExp _ -> TBoolean
+
+    ParenExp exp -> checkExp env exp
+
     VariableExp name ->
       case M.lookup name env of
         Nothing -> error ("Variable '" <> name <> "' not in scope.")
         Just typ -> typ
+
+    VectorExp e1 e2 ->
+      let t1 = checkExp env e1
+          t2 = checkExp env e2
+          correct = and $ [t1 == TInteger, t2 == TInteger, t1 == t2]
+      in
+        if correct
+        then TVector
+        else error ("Invalid vector expression composed of "
+                    <> (show t1) <> "," <> (show t2) <> ".")
 
     ListExp exps ->
       let (t:ts) = map (checkExp env) exps
