@@ -90,6 +90,7 @@ handleExp defs (BinaryExp exp1 bop exp2) = do
     Lte -> comparativeOperations bop e1 e2
     Equal -> comparativeOperations bop e1 e2
     NotEqual -> comparativeOperations bop e1 e2
+    _ -> Nothing
 
 handleExp _ _ = Nothing
 
