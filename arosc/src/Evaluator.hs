@@ -68,8 +68,88 @@ handleExp defs (SetExp expSet) = do
   mapped <- mapM (handleExp defs) expSet
   return $ TSet (Set.fromList mapped)
 
+handleExp defs (BinaryExp exp1 bop exp2) = do
+  e1 <- handleExp defs exp1
+  e2 <- handleExp defs exp2
+  case bop of
+    Plus -> intOperation bop e1 e2
+    Minus -> intOperation bop e1 e2
+    Times -> intOperation bop e1 e2
+    Div -> intOperation bop e1 e2
+    Cons -> consOperation e1 e2
+-- ?    Append ->
+    Union -> setsOperation bop e1 e2
+    Intersection -> setsOperation bop e1 e2
+    Shift -> setVecOperation bop e1 e2
+    Crop -> setVecOperation bop e1 e2
+    And -> booleanOperation bop e1 e2
+    Or -> booleanOperation bop e1 e2
+    Gt -> comparativeOperations bop e1 e2
+    Lt -> comparativeOperations bop e1 e2
+    Gte -> comparativeOperations bop e1 e2
+    Lte -> comparativeOperations bop e1 e2
+    Equal -> comparativeOperations bop e1 e2
+    NotEqual -> comparativeOperations bop e1 e2
 
 handleExp _ _ = Nothing
+
+intOperation :: BinaryOp -> Value -> Value -> Maybe Value
+intOperation bop (TInt i) (TInt j) =
+  case bop of
+    Plus -> Just $ TInt $ i+j
+    Minus -> Just $ TInt $ i-j
+    Times -> Just $ TInt $ i*j
+    Div -> Just $ TInt $ div i j
+intOperation _ _ _ = Nothing
+
+consOperation :: Value -> Value -> Maybe Value
+consOperation (TInt i) (TList xs)  = Just $ TList $ i:xs
+consOperation (TVec i) (TList xs)  = Just $ TList $ i:xs
+consOperation (TBool i) (TList xs) = Just $ TList $ i:xs
+consOperation (TList i) (TList xs) = Just $ TList $ i:xs
+consOperation (TSet i) (TList xs)  = Just $ TList $ i:xs
+consOperation _ _ = Nothing
+
+setsOperation :: BinaryOp -> Value -> Value -> Maybe Value
+setsOperation Union (TSet s1) (TSet s2) = Just $ TSet $ Set.union s1 s2
+setsOperation Intersection (TSet s1) (TSet s2) = Just $ TSet $ Set.intersection s1 s2
+setsOperation _ _ _ = Nothing
+
+
+setVecOperation :: BinaryOp -> Value -> Value -> Maybe Value
+setVecOperation Shift (TSet s) (TVec (a,b)) = Just $ TSet $ Set.fromList $ map (\(x,y) -> (x+a, y+b)) $ Set.toList s
+setVecOperation Crop (TSet s) (TVec (a,b)) = Just $ TSet $ Set.fromList $ filter (\(x,y) -> x<=a && y<=b) $ Set.toList s
+setVecOperation _ _ _ = Nothing
+
+
+booleanOperation :: BinaryOp -> Value -> Value -> Maybe Value
+booleanOperation And (TBool b1) (TBool b2) = Just $ TBool $ b1 == b2
+booleanOperation Or (TBool b1) (TBool b2) = Just $ TBool $ b1 || b2
+
+
+comparativeOperations :: BinaryOp -> Value -> Value -> Maybe Value
+comparativeOperations bop (TBool b1) (TBool b2) =
+  case bop of
+    Equal -> Just $ TBool $ b1 == b2
+    NotEqual -> Just $ TBool $ b1 /= b2
+    _ -> Nothing
+comparativeOperations bop (TInt i) (TInt j) =
+  case bop of
+    Equal -> Just $ TBool $ i == j
+    NotEqual -> Just $ TBool $ i /= j
+    Gt -> Just $ TBool $ i > j
+    Lt -> Just $ TBool $ i < j
+    Gte -> Just $ TBool $ i >= j
+    Lte -> Just $ TBool $ i <= j
+comparativeOperations bop (TVec (i1,j1)) (TVec (i2,j2)) =
+  case bop of
+    Equal -> Just $ TBool $ ( i1 == j1 ) && ( i2 ==  j2)
+    NotEqual -> Just $ TBool $  ( i1 /= j1 ) || ( i2 /=  j2)
+    Gt -> Just $ TBool $  ( i1 > j1 ) && ( i2 >  j2)
+    Lt -> Just $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
+    Gte -> Just $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
+    Lte -> Just $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
+comparativeOperations _ _ _ = Nothing
 
 
 
