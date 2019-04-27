@@ -11,8 +11,9 @@ data Value = TInt Int
            | TVec (Int, Int)
            | TBool Bool
            | TList [Value]
+           | TSet (Set Value)
            | TLambda
-           deriving Show
+           deriving (Show, Eq, Ord)
 
 
 parsed :: Either String Program
@@ -38,12 +39,12 @@ computeDecl dtype defs expr = handleExp defs expr
 handleGrid :: GridDef -> Map String Value -> Maybe Value
 handleGrid _ _ = Just (TList [TVec (1, 1), TVec (2, 2), TVec (3, 3) ])
 
-vvv :: Exp
-vvv = VectorExp (IntegerExp 69) (BooleanExp True)
-vvv2 :: Exp
-vvv2 = VectorExp (IntegerExp 69) (IntegerExp 420)
-vvv3 :: Exp
-vvv3 = ListExp [(IntegerExp 1), (IntegerExp 2), (IntegerExp 3)]
+testVexp :: Exp
+testVexp = VectorExp (IntegerExp 69) (IntegerExp 420)
+testListExp :: Exp
+testListExp = ListExp [(IntegerExp 1), (IntegerExp 2), (IntegerExp 3)]
+testSetExp :: Exp
+testSetExp = SetExp [(IntegerExp 1), (IntegerExp 2), (IntegerExp 3)]
 
 handleExp :: Map String Value -> Exp -> Maybe Value
 handleExp defs (VariableExp ident) = Map.lookup ident defs
@@ -60,10 +61,12 @@ handleExp defs (VectorExp a b) =
     return (TVec (ua, ub))
 
 handleExp defs (ListExp expList) = do
-  mapped <- map (handleExp defs) expList
+  mapped <- mapM (handleExp defs) expList
   return $ TList mapped
 
-handleExp _ (ListExp []) = Just $ TList []
+handleExp defs (SetExp expSet) = do
+  mapped <- mapM (handleExp defs) expSet
+  return $ TSet (Set.fromList mapped)
 
 
 handleExp _ _ = Nothing
