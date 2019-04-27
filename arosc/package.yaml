@@ -10,7 +10,6 @@ extra-source-files:
 - README.md
 - ChangeLog.md
 - src/Lexer.x
-- src/Parser.y
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -29,6 +28,7 @@ library:
   dependencies:
     - array
     - containers
+    - mtl
 
 executables:
   arosc-exe:
