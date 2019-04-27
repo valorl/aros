@@ -94,20 +94,14 @@ handleExp defs (BinaryExp exp1 bop exp2) = do
 handleExp _ _ = Nothing
 
 intOperation :: BinaryOp -> Value -> Value -> Maybe Value
-intOperation bop (TInt i) (TInt j) =
-  case bop of
-    Plus -> Just $ TInt $ i+j
-    Minus -> Just $ TInt $ i-j
-    Times -> Just $ TInt $ i*j
-    Div -> Just $ TInt $ div i j
+intOperation Plus  (TInt i) (TInt j) = Just $ TInt $ i+j
+intOperation Minus (TInt i) (TInt j) = Just $ TInt $ i-j
+intOperation Times (TInt i) (TInt j) = Just $ TInt $ i*j
+intOperation Div   (TInt i) (TInt j) = Just $ TInt $ div i j
 intOperation _ _ _ = Nothing
 
 consOperation :: Value -> Value -> Maybe Value
-consOperation (TInt i) (TList xs)  = Just $ TList $ i:xs
-consOperation (TVec i) (TList xs)  = Just $ TList $ i:xs
-consOperation (TBool i) (TList xs) = Just $ TList $ i:xs
-consOperation (TList i) (TList xs) = Just $ TList $ i:xs
-consOperation (TSet i) (TList xs)  = Just $ TList $ i:xs
+consOperation i (TList xs)  = Just $ TList $ i:xs
 consOperation _ _ = Nothing
 
 setsOperation :: BinaryOp -> Value -> Value -> Maybe Value
@@ -117,14 +111,15 @@ setsOperation _ _ _ = Nothing
 
 
 setVecOperation :: BinaryOp -> Value -> Value -> Maybe Value
-setVecOperation Shift (TSet s) (TVec (a,b)) = Just $ TSet $ Set.fromList $ map (\(x,y) -> (x+a, y+b)) $ Set.toList s
-setVecOperation Crop (TSet s) (TVec (a,b)) = Just $ TSet $ Set.fromList $ filter (\(x,y) -> x<=a && y<=b) $ Set.toList s
+setVecOperation Shift (TSet s) (TVec (a,b)) = Just $ TSet $ Set.map (\(TVec (x,y)) -> TVec (x+a, y+b)) s
+setVecOperation Crop (TSet s) (TVec (a,b)) =  Just $ TSet $ Set.filter (\(TVec (x,y)) -> x<=a && y<=b) s
 setVecOperation _ _ _ = Nothing
 
 
 booleanOperation :: BinaryOp -> Value -> Value -> Maybe Value
 booleanOperation And (TBool b1) (TBool b2) = Just $ TBool $ b1 == b2
 booleanOperation Or (TBool b1) (TBool b2) = Just $ TBool $ b1 || b2
+booleanOperation _ _ _ = Nothing
 
 
 comparativeOperations :: BinaryOp -> Value -> Value -> Maybe Value
@@ -141,6 +136,7 @@ comparativeOperations bop (TInt i) (TInt j) =
     Lt -> Just $ TBool $ i < j
     Gte -> Just $ TBool $ i >= j
     Lte -> Just $ TBool $ i <= j
+    _ -> Nothing
 comparativeOperations bop (TVec (i1,j1)) (TVec (i2,j2)) =
   case bop of
     Equal -> Just $ TBool $ ( i1 == j1 ) && ( i2 ==  j2)
@@ -149,6 +145,7 @@ comparativeOperations bop (TVec (i1,j1)) (TVec (i2,j2)) =
     Lt -> Just $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
     Gte -> Just $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
     Lte -> Just $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
+    _ -> Nothing
 comparativeOperations _ _ _ = Nothing
 
 
