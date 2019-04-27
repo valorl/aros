@@ -19,6 +19,7 @@ data Token = TokenIntLit Int
            | TokenElse
            | TokenCond
            | TokenOtherwise
+           | TokenRouteRobot
            | TokenArrow
            | TokenPlus
            | TokenMinus
@@ -105,5 +106,5 @@ data Exp = VariableExp String
 
 data GridDef = GridDef Exp Exp
   deriving (Eq, Show)
-data Program = Program [Declaration] GridDef
+data Program = Program [Declaration] GridDef [Exp]
   deriving (Eq, Show)
