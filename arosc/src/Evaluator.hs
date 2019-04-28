@@ -77,7 +77,32 @@ handleExp defs (UnaryExp uop expr) = do
   e <- handleExp defs expr
   unaryExpressionHandler uop e
 
+-- TODO
+handleExp defs (LambdaExp (x:xs) block) = Nothing
+handleExp defs (ApplicationExp expr (x:xs)) = Nothing
+
+handleExp defs (IfExp expr block1  block2) =
+  let (Just (TBool evaluated)) = handleExp defs expr in
+    if evaluated
+      then handleBlock defs block1
+      else handleBlock defs block2
+
+handleExp defs (CondExp ((expr,block):xs) otherwiseBlock) =
+  let (Just (TBool evaluated)) = handleExp defs expr in
+    if evaluated
+      then handleBlock defs block
+      else handleExp defs (CondExp xs otherwiseBlock)
+handleExp defs (CondExp [] otherwiseBlock) = handleBlock defs otherwiseBlock
+
 handleExp _ _ = Nothing
+
+handleBlock :: Map String Value -> Block -> Maybe Value
+handleBlock defs (Block ((Decl dtype ident expr):xs) finalExp) =
+  case (computeDecl dtype defs expr) of
+    Nothing -> Nothing
+    Just computedDecl -> handleBlock (Map.insert ident computedDecl defs) (Block xs finalExp)
+handleBlock defs (Block [] finalExp) = handleExp defs finalExp
+
 
 binaryOperationHandler :: BinaryOp -> Value -> Value -> Maybe Value
 binaryOperationHandler Plus  (TInt i) (TInt j) = Just $ TInt $ i+j
