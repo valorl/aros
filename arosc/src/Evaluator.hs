@@ -37,7 +37,10 @@ computeDecl dtype defs expr = handleExp defs expr
 
 -- TODO
 handleGrid :: GridDef -> Map String Value -> Maybe Value
-handleGrid _ _ = Just (TList [TVec (1, 1), TVec (2, 2), TVec (3, 3) ])
+handleGrid (GridDef e1 e2) defs = do
+    playsize <- handleExp defs e1
+    playmap <- handleExp defs e2
+    return playmap
 
 testVexp :: Exp
 testVexp = VectorExp (IntegerExp 69) (IntegerExp 420)
@@ -147,5 +150,5 @@ unaryExpressionHandler _ _ = Nothing
 
 -- TODO
 handleRobot :: Maybe Value -> [Exp] -> Map String Value -> Maybe String
-handleRobot (Just (TList (x:xs))) wpts defs = Just (show defs)
+handleRobot (Just (TSet s)) wpts defs = Just (show defs)
 handleRobot _ _ _ = Nothing
