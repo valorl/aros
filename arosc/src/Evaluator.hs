@@ -17,7 +17,7 @@ data Value = TInt Int
 
 
 parsed :: Either String Program
-parsed = Parser.parseAros "" "int myint = 5 ; grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
+parsed = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
 
 evalTree :: Either String Program -> Maybe String
 evalTree (Right x) = evaluateProgram x Map.empty
@@ -71,84 +71,50 @@ handleExp defs (SetExp expSet) = do
 handleExp defs (BinaryExp exp1 bop exp2) = do
   e1 <- handleExp defs exp1
   e2 <- handleExp defs exp2
-  case bop of
-    Plus -> intOperation bop e1 e2
-    Minus -> intOperation bop e1 e2
-    Times -> intOperation bop e1 e2
-    Div -> intOperation bop e1 e2
-    Cons -> consOperation e1 e2
--- ?    Append ->
-    Union -> setsOperation bop e1 e2
-    Intersection -> setsOperation bop e1 e2
-    Shift -> setVecOperation bop e1 e2
-    Crop -> setVecOperation bop e1 e2
-    And -> booleanOperation bop e1 e2
-    Or -> booleanOperation bop e1 e2
-    Gt -> comparativeOperations bop e1 e2
-    Lt -> comparativeOperations bop e1 e2
-    Gte -> comparativeOperations bop e1 e2
-    Lte -> comparativeOperations bop e1 e2
-    Equal -> comparativeOperations bop e1 e2
-    NotEqual -> comparativeOperations bop e1 e2
-    _ -> Nothing
+  binaryOperationHandler bop e1 e2
+
+handleExp defs (UnaryExp uop expr) = do
+  e <- handleExp defs expr
+  unaryExpressionHandler uop e
 
 handleExp _ _ = Nothing
 
-intOperation :: BinaryOp -> Value -> Value -> Maybe Value
-intOperation Plus  (TInt i) (TInt j) = Just $ TInt $ i+j
-intOperation Minus (TInt i) (TInt j) = Just $ TInt $ i-j
-intOperation Times (TInt i) (TInt j) = Just $ TInt $ i*j
-intOperation Div   (TInt i) (TInt j) = Just $ TInt $ div i j
-intOperation _ _ _ = Nothing
+binaryOperationHandler :: BinaryOp -> Value -> Value -> Maybe Value
+binaryOperationHandler Plus  (TInt i) (TInt j) = Just $ TInt $ i+j
+binaryOperationHandler Minus (TInt i) (TInt j) = Just $ TInt $ i-j
+binaryOperationHandler Times (TInt i) (TInt j) = Just $ TInt $ i*j
+binaryOperationHandler Div   (TInt i) (TInt j) = Just $ TInt $ div i j
+binaryOperationHandler Cons i (TList xs)  = Just $ TList $ i:xs
+binaryOperationHandler Append i (TList xs) = Just $ TList $ reverse $ i : ( reverse xs )
+binaryOperationHandler Union (TSet s1) (TSet s2) = Just $ TSet $ Set.union s1 s2
+binaryOperationHandler Intersection (TSet s1) (TSet s2) = Just $ TSet $ Set.intersection s1 s2
+binaryOperationHandler Shift (TSet s) (TVec (a,b)) = Just $ TSet $ Set.map (\(TVec (x,y)) -> TVec (x+a, y+b)) s
+binaryOperationHandler Crop (TSet s) (TVec (a,b)) =  Just $ TSet $ Set.filter (\(TVec (x,y)) -> x<=a && y<=b) s
+binaryOperationHandler And (TBool b1) (TBool b2) = Just $ TBool $ b1 == b2
+binaryOperationHandler Or (TBool b1) (TBool b2) = Just $ TBool $ b1 || b2
+binaryOperationHandler Equal (TBool b1) (TBool b2) = Just $ TBool $ b1 == b2
+binaryOperationHandler NotEqual (TBool b1) (TBool b2) = Just $ TBool $ b1 /= b2
+binaryOperationHandler Equal (TInt i) (TInt j) = Just $ TBool $ i == j
+binaryOperationHandler NotEqual (TInt i) (TInt j) = Just $ TBool $ i /= j
+binaryOperationHandler Gt (TInt i) (TInt j) = Just $ TBool $ i > j
+binaryOperationHandler Lt (TInt i) (TInt j) = Just $ TBool $ i < j
+binaryOperationHandler Gte (TInt i) (TInt j) = Just $ TBool $ i >= j
+binaryOperationHandler Lte (TInt i) (TInt j) = Just $ TBool $ i <= j
+binaryOperationHandler Equal (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $ ( i1 == j1 ) && ( i2 ==  j2)
+binaryOperationHandler NotEqual (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 /= j1 ) || ( i2 /=  j2)
+binaryOperationHandler Gt (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 > j1 ) && ( i2 >  j2)
+binaryOperationHandler Lt (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
+binaryOperationHandler Gte (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
+binaryOperationHandler Lte (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
+binaryOperationHandler _ _ _ = Nothing
 
-consOperation :: Value -> Value -> Maybe Value
-consOperation i (TList xs)  = Just $ TList $ i:xs
-consOperation _ _ = Nothing
-
-setsOperation :: BinaryOp -> Value -> Value -> Maybe Value
-setsOperation Union (TSet s1) (TSet s2) = Just $ TSet $ Set.union s1 s2
-setsOperation Intersection (TSet s1) (TSet s2) = Just $ TSet $ Set.intersection s1 s2
-setsOperation _ _ _ = Nothing
-
-
-setVecOperation :: BinaryOp -> Value -> Value -> Maybe Value
-setVecOperation Shift (TSet s) (TVec (a,b)) = Just $ TSet $ Set.map (\(TVec (x,y)) -> TVec (x+a, y+b)) s
-setVecOperation Crop (TSet s) (TVec (a,b)) =  Just $ TSet $ Set.filter (\(TVec (x,y)) -> x<=a && y<=b) s
-setVecOperation _ _ _ = Nothing
-
-
-booleanOperation :: BinaryOp -> Value -> Value -> Maybe Value
-booleanOperation And (TBool b1) (TBool b2) = Just $ TBool $ b1 == b2
-booleanOperation Or (TBool b1) (TBool b2) = Just $ TBool $ b1 || b2
-booleanOperation _ _ _ = Nothing
-
-
-comparativeOperations :: BinaryOp -> Value -> Value -> Maybe Value
-comparativeOperations bop (TBool b1) (TBool b2) =
-  case bop of
-    Equal -> Just $ TBool $ b1 == b2
-    NotEqual -> Just $ TBool $ b1 /= b2
-    _ -> Nothing
-comparativeOperations bop (TInt i) (TInt j) =
-  case bop of
-    Equal -> Just $ TBool $ i == j
-    NotEqual -> Just $ TBool $ i /= j
-    Gt -> Just $ TBool $ i > j
-    Lt -> Just $ TBool $ i < j
-    Gte -> Just $ TBool $ i >= j
-    Lte -> Just $ TBool $ i <= j
-    _ -> Nothing
-comparativeOperations bop (TVec (i1,j1)) (TVec (i2,j2)) =
-  case bop of
-    Equal -> Just $ TBool $ ( i1 == j1 ) && ( i2 ==  j2)
-    NotEqual -> Just $ TBool $  ( i1 /= j1 ) || ( i2 /=  j2)
-    Gt -> Just $ TBool $  ( i1 > j1 ) && ( i2 >  j2)
-    Lt -> Just $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
-    Gte -> Just $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
-    Lte -> Just $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
-    _ -> Nothing
-comparativeOperations _ _ _ = Nothing
-
+unaryExpressionHandler :: UnaryOp -> Value -> Maybe Value
+unaryExpressionHandler Not (TBool e) = Just $ TBool $ not e
+unaryExpressionHandler Head (TList (x:_)) = Just x
+unaryExpressionHandler Tail (TList (_:xs)) = Just $ TList xs
+unaryExpressionHandler Vecx (TVec (a,_)) = Just $ TInt a
+unaryExpressionHandler Vecy (TVec (_,b)) = Just $ TInt b
+unaryExpressionHandler _ _ = Nothing
 
 
 -- TODO
