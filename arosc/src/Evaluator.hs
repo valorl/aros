@@ -19,24 +19,24 @@ data Value = TInt Int
 parsed :: Either String Program
 parsed = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
 
-evalTree :: Either String Program -> Maybe String
+evalTree :: Either String Program -> Either String String
 evalTree (Right x) = evaluateProgram x Map.empty
-evalTree (Left _) = Nothing
+evalTree (Left _) = Left "err"
 
 -- Parses definitions into a map, then calls handleRobot
-evaluateProgram :: Program -> Map String Value -> Maybe String
+evaluateProgram :: Program -> Map String Value -> Either String String
 evaluateProgram (Program ((Decl dtype ident expr):xs) grd wpts ) defs =
   case (computeDecl dtype defs expr) of
-    Nothing -> Nothing
-    Just computedDecl -> evaluateProgram (Program xs grd wpts) (Map.insert ident computedDecl defs)
+    Right computedDecl -> evaluateProgram (Program xs grd wpts) (Map.insert ident computedDecl defs)
+    Left e -> Left e
 evaluateProgram (Program [] grd wpts) defs = handleRobot (handleGrid grd defs) wpts defs
 
 
-computeDecl :: DeclType -> Map String Value -> Exp -> Maybe Value
+computeDecl :: DeclType -> Map String Value -> Exp -> Either String Value
 computeDecl dtype defs expr = handleExp defs expr
 
 -- TODO
-handleGrid :: GridDef -> Map String Value -> Maybe Value
+handleGrid :: GridDef -> Map String Value -> Either String Value
 handleGrid (GridDef e1 e2) defs = do
     playsize <- handleExp defs e1
     playmap <- handleExp defs e2
@@ -49,19 +49,20 @@ testListExp = ListExp [(IntegerExp 1), (IntegerExp 2), (IntegerExp 3)]
 testSetExp :: Exp
 testSetExp = SetExp [(IntegerExp 1), (IntegerExp 2), (IntegerExp 3)]
 
-handleExp :: Map String Value -> Exp -> Maybe Value
-handleExp defs (VariableExp ident) = Map.lookup ident defs
+handleExp :: Map String Value -> Exp -> Either String Value
+handleExp defs (VariableExp ident) =
+  case ( Map.lookup ident defs ) of
+    (Just d) -> return d
+    Nothing -> (Left "err")
 handleExp defs (ParenExp expr) = handleExp defs expr
-handleExp _ (IntegerExp i) = Just $ TInt i
-handleExp _ (BooleanExp b) = Just $ TBool b
-handleExp defs (VectorExp a b) =
-  let
-    ca = handleExp defs a
-    cb = handleExp defs b
-  in do
-    (TInt ua) <- ca
-    (TInt ub) <- cb
-    return (TVec (ua, ub))
+handleExp _ (IntegerExp i) = Right $ TInt i
+handleExp _ (BooleanExp b) = Right $ TBool b
+handleExp defs (VectorExp a b) = do
+    ua <- handleExp defs a
+    ub <- handleExp defs b
+    case (ua, ub) of
+      ((TInt ia),(TInt ib)) -> return (TVec (ia, ib))
+      _ -> Left "err"
 
 handleExp defs (ListExp expList) = do
   mapped <- mapM (handleExp defs) expList
@@ -80,7 +81,7 @@ handleExp defs (UnaryExp uop expr) = do
   e <- handleExp defs expr
   unaryExpressionHandler uop e
 
-handleExp defs (LambdaExp strings block) = Just $ TLambda defs strings block
+handleExp defs (LambdaExp strings block) = Right $ TLambda defs strings block
 
 --TODO
 handleExp defs (ApplicationExp expr (x:xs)) = do
@@ -88,67 +89,67 @@ handleExp defs (ApplicationExp expr (x:xs)) = do
   return e
 
 handleExp defs (IfExp expr block1  block2) =
-  let (Just (TBool evaluated)) = handleExp defs expr in
+  let (Right (TBool evaluated)) = handleExp defs expr in
     if evaluated
       then blockHandler defs block1
       else blockHandler defs block2
 
 handleExp defs (CondExp ((expr,block):xs) otherwiseBlock) =
-  let (Just (TBool evaluated)) = handleExp defs expr in
+  let (Right (TBool evaluated)) = handleExp defs expr in
     if evaluated
       then blockHandler defs block
       else handleExp defs (CondExp xs otherwiseBlock)
 handleExp defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
 
-handleExp _ _ = Nothing
+handleExp _ _ = Left "err"
 
-blockHandler :: Map String Value -> Block -> Maybe Value
+blockHandler :: Map String Value -> Block -> Either String Value
 blockHandler defs (Block ((Decl dtype ident expr):xs) finalExp) =
   case (computeDecl dtype defs expr) of
-    Nothing -> Nothing
-    Just computedDecl -> blockHandler (Map.insert ident computedDecl defs) (Block xs finalExp)
+    Left _ -> Left "err"
+    Right computedDecl -> blockHandler (Map.insert ident computedDecl defs) (Block xs finalExp)
 blockHandler defs (Block [] finalExp) = handleExp defs finalExp
 
 
-binaryOperationHandler :: BinaryOp -> Value -> Value -> Maybe Value
-binaryOperationHandler Plus  (TInt i) (TInt j) = Just $ TInt $ i+j
-binaryOperationHandler Minus (TInt i) (TInt j) = Just $ TInt $ i-j
-binaryOperationHandler Times (TInt i) (TInt j) = Just $ TInt $ i*j
-binaryOperationHandler Div   (TInt i) (TInt j) = Just $ TInt $ div i j
-binaryOperationHandler Cons i (TList xs)  = Just $ TList $ i:xs
-binaryOperationHandler Append i (TList xs) = Just $ TList $ reverse $ i : ( reverse xs )
-binaryOperationHandler Union (TSet s1) (TSet s2) = Just $ TSet $ Set.union s1 s2
-binaryOperationHandler Intersection (TSet s1) (TSet s2) = Just $ TSet $ Set.intersection s1 s2
-binaryOperationHandler Shift (TSet s) (TVec (a,b)) = Just $ TSet $ Set.map (\(TVec (x,y)) -> TVec (x+a, y+b)) s
-binaryOperationHandler Crop (TSet s) (TVec (a,b)) =  Just $ TSet $ Set.filter (\(TVec (x,y)) -> x<=a && y<=b) s
-binaryOperationHandler And (TBool b1) (TBool b2) = Just $ TBool $ b1 == b2
-binaryOperationHandler Or (TBool b1) (TBool b2) = Just $ TBool $ b1 || b2
-binaryOperationHandler Equal (TBool b1) (TBool b2) = Just $ TBool $ b1 == b2
-binaryOperationHandler NotEqual (TBool b1) (TBool b2) = Just $ TBool $ b1 /= b2
-binaryOperationHandler Equal (TInt i) (TInt j) = Just $ TBool $ i == j
-binaryOperationHandler NotEqual (TInt i) (TInt j) = Just $ TBool $ i /= j
-binaryOperationHandler Gt (TInt i) (TInt j) = Just $ TBool $ i > j
-binaryOperationHandler Lt (TInt i) (TInt j) = Just $ TBool $ i < j
-binaryOperationHandler Gte (TInt i) (TInt j) = Just $ TBool $ i >= j
-binaryOperationHandler Lte (TInt i) (TInt j) = Just $ TBool $ i <= j
-binaryOperationHandler Equal (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $ ( i1 == j1 ) && ( i2 ==  j2)
-binaryOperationHandler NotEqual (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 /= j1 ) || ( i2 /=  j2)
-binaryOperationHandler Gt (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 > j1 ) && ( i2 >  j2)
-binaryOperationHandler Lt (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
-binaryOperationHandler Gte (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
-binaryOperationHandler Lte (TVec (i1,j1)) (TVec (i2,j2)) = Just $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
-binaryOperationHandler _ _ _ = Nothing
+binaryOperationHandler :: BinaryOp -> Value -> Value -> Either String Value
+binaryOperationHandler Plus  (TInt i) (TInt j) = Right $ TInt $ i+j
+binaryOperationHandler Minus (TInt i) (TInt j) = Right $ TInt $ i-j
+binaryOperationHandler Times (TInt i) (TInt j) = Right $ TInt $ i*j
+binaryOperationHandler Div   (TInt i) (TInt j) = Right $ TInt $ div i j
+binaryOperationHandler Cons i (TList xs)  = Right $ TList $ i:xs
+binaryOperationHandler Append i (TList xs) = Right $ TList $ reverse $ i : ( reverse xs )
+binaryOperationHandler Union (TSet s1) (TSet s2) = Right $ TSet $ Set.union s1 s2
+binaryOperationHandler Intersection (TSet s1) (TSet s2) = Right $ TSet $ Set.intersection s1 s2
+binaryOperationHandler Shift (TSet s) (TVec (a,b)) = Right $ TSet $ Set.map (\(TVec (x,y)) -> TVec (x+a, y+b)) s
+binaryOperationHandler Crop (TSet s) (TVec (a,b)) =  Right $ TSet $ Set.filter (\(TVec (x,y)) -> x<=a && y<=b) s
+binaryOperationHandler And (TBool b1) (TBool b2) = Right $ TBool $ b1 == b2
+binaryOperationHandler Or (TBool b1) (TBool b2) = Right $ TBool $ b1 || b2
+binaryOperationHandler Equal (TBool b1) (TBool b2) = Right $ TBool $ b1 == b2
+binaryOperationHandler NotEqual (TBool b1) (TBool b2) = Right $ TBool $ b1 /= b2
+binaryOperationHandler Equal (TInt i) (TInt j) = Right $ TBool $ i == j
+binaryOperationHandler NotEqual (TInt i) (TInt j) = Right $ TBool $ i /= j
+binaryOperationHandler Gt (TInt i) (TInt j) = Right $ TBool $ i > j
+binaryOperationHandler Lt (TInt i) (TInt j) = Right $ TBool $ i < j
+binaryOperationHandler Gte (TInt i) (TInt j) = Right $ TBool $ i >= j
+binaryOperationHandler Lte (TInt i) (TInt j) = Right $ TBool $ i <= j
+binaryOperationHandler Equal (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $ ( i1 == j1 ) && ( i2 ==  j2)
+binaryOperationHandler NotEqual (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 /= j1 ) || ( i2 /=  j2)
+binaryOperationHandler Gt (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 > j1 ) && ( i2 >  j2)
+binaryOperationHandler Lt (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
+binaryOperationHandler Gte (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
+binaryOperationHandler Lte (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
+binaryOperationHandler _ _ _ = Left "err"
 
-unaryExpressionHandler :: UnaryOp -> Value -> Maybe Value
-unaryExpressionHandler Not (TBool e) = Just $ TBool $ not e
-unaryExpressionHandler Head (TList (x:_)) = Just x
-unaryExpressionHandler Tail (TList (_:xs)) = Just $ TList xs
-unaryExpressionHandler Vecx (TVec (a,_)) = Just $ TInt a
-unaryExpressionHandler Vecy (TVec (_,b)) = Just $ TInt b
-unaryExpressionHandler _ _ = Nothing
+unaryExpressionHandler :: UnaryOp -> Value -> Either String Value
+unaryExpressionHandler Not (TBool e) = Right $ TBool $ not e
+unaryExpressionHandler Head (TList (x:_)) = Right x
+unaryExpressionHandler Tail (TList (_:xs)) = Right $ TList xs
+unaryExpressionHandler Vecx (TVec (a,_)) = Right $ TInt a
+unaryExpressionHandler Vecy (TVec (_,b)) = Right $ TInt b
+unaryExpressionHandler _ _ = Left "err"
 
 
 -- TODO
-handleRobot :: Maybe Value -> [Exp] -> Map String Value -> Maybe String
-handleRobot (Just (TSet s)) wpts defs = Just (show defs)
-handleRobot _ _ _ = Nothing
+handleRobot :: Either String Value -> [Exp] -> Map String Value -> Either String String
+handleRobot (Right (TSet s)) wpts defs = Right (show defs)
+handleRobot _ _ _ = Left "err"
