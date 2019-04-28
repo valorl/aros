@@ -12,7 +12,7 @@ data Value = TInt Int
            | TBool Bool
            | TList [Value]
            | TSet (Set Value)
-           | TLambda
+           | TLambda [String] Block
            deriving (Show, Eq, Ord)
 
 
@@ -77,9 +77,12 @@ handleExp defs (UnaryExp uop expr) = do
   e <- handleExp defs expr
   unaryExpressionHandler uop e
 
--- TODO
-handleExp defs (LambdaExp (x:xs) block) = Nothing
-handleExp defs (ApplicationExp expr (x:xs)) = Nothing
+handleExp defs (LambdaExp strings block) = Just $ TLambda strings block
+
+--TODO
+handleExp defs (ApplicationExp expr (x:xs)) = do
+  e <- handleExp defs expr
+  return e
 
 handleExp defs (IfExp expr block1  block2) =
   let (Just (TBool evaluated)) = handleExp defs expr in
