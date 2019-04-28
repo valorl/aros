@@ -84,24 +84,24 @@ handleExp defs (ApplicationExp expr (x:xs)) = Nothing
 handleExp defs (IfExp expr block1  block2) =
   let (Just (TBool evaluated)) = handleExp defs expr in
     if evaluated
-      then handleBlock defs block1
-      else handleBlock defs block2
+      then blockHandler defs block1
+      else blockHandler defs block2
 
 handleExp defs (CondExp ((expr,block):xs) otherwiseBlock) =
   let (Just (TBool evaluated)) = handleExp defs expr in
     if evaluated
-      then handleBlock defs block
+      then blockHandler defs block
       else handleExp defs (CondExp xs otherwiseBlock)
-handleExp defs (CondExp [] otherwiseBlock) = handleBlock defs otherwiseBlock
+handleExp defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
 
 handleExp _ _ = Nothing
 
-handleBlock :: Map String Value -> Block -> Maybe Value
-handleBlock defs (Block ((Decl dtype ident expr):xs) finalExp) =
+blockHandler :: Map String Value -> Block -> Maybe Value
+blockHandler defs (Block ((Decl dtype ident expr):xs) finalExp) =
   case (computeDecl dtype defs expr) of
     Nothing -> Nothing
-    Just computedDecl -> handleBlock (Map.insert ident computedDecl defs) (Block xs finalExp)
-handleBlock defs (Block [] finalExp) = handleExp defs finalExp
+    Just computedDecl -> blockHandler (Map.insert ident computedDecl defs) (Block xs finalExp)
+blockHandler defs (Block [] finalExp) = handleExp defs finalExp
 
 
 binaryOperationHandler :: BinaryOp -> Value -> Value -> Maybe Value
