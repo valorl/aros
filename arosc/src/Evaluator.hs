@@ -12,6 +12,7 @@ data Value = TInt Int
            | TBool Bool
            | TList [Value]
            | TSet (Set Value)
+           | TGridSet (Set Value) Value
            | TLambda (Map String Value) [String] Block
            deriving (Show, Eq, Ord)
 
@@ -35,12 +36,13 @@ evaluateProgram (Program [] grd wpts) defs = handleRobot (handleGrid grd defs) w
 computeDecl :: DeclType -> Map String Value -> Exp -> Either String Value
 computeDecl dtype defs expr = handleExp defs expr
 
--- TODO
 handleGrid :: GridDef -> Map String Value -> Either String Value
 handleGrid (GridDef e1 e2) defs = do
     playsize <- handleExp defs e1
     playmap <- handleExp defs e2
-    return playmap
+    case playmap of
+      (TSet m) -> return $ TGridSet m playsize
+      _ -> Left "Didn't get a Set"
 
 testVexp :: Exp
 testVexp = VectorExp (IntegerExp 69) (IntegerExp 420)
@@ -83,7 +85,7 @@ handleExp defs (UnaryExp uop expr) = do
 
 handleExp defs (LambdaExp strings block) = Right $ TLambda defs strings block
 
---TODO
+--TODO here the lambda gets executed
 handleExp defs (ApplicationExp expr (x:xs)) = do
   e <- handleExp defs expr
   return e
@@ -151,5 +153,5 @@ unaryExpressionHandler _ _ = Left "err"
 
 -- TODO
 handleRobot :: Either String Value -> [Exp] -> Map String Value -> Either String String
-handleRobot (Right (TSet s)) wpts defs = Right (show defs)
+handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show defs) ++ "  ------  " ++ (show $ Set.toList playmap) ++ " sized " ++ (show playsize)
 handleRobot _ _ _ = Left "err"
