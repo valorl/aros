@@ -125,12 +125,18 @@ checkExp env exp typ =
       then return True
       else error errorMsg
 
-
-
-
-
-
-     
+    LambdaExp names block -> do
+      let (TFunction pTypes bType) = typ
+      let errorMsg = "Lambda expression type error:\n"
+                   <> "Params: " <> (show names)
+                   <> "\nBlock: " <> (show block)
+                   <> "\nType: " <> (show typ)
+      let paramCheck = (length names) == (length pTypes)
+      let lambdaEnv = M.fromList(zip names pTypes) `M.union` env
+      blockOk <- checkBlock lambdaEnv block bType
+      if paramCheck && blockOk
+      then return True
+      else error errorMsg
 
 
 -- VECTOR
