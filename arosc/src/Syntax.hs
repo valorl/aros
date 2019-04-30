@@ -99,7 +99,7 @@ data Exp = VariableExp String
   | BinaryExp Exp BinaryOp Exp
   | UnaryExp UnaryOp Exp
   | LambdaExp [String] Block
-  | ApplicationExp Exp [Exp]
+  | ApplicationExp String [Exp]
   | IfExp Exp Block Block
   | CondExp [(Exp, Block)] Block
   deriving (Eq, Show)

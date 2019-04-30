@@ -56,7 +56,7 @@ tokens :-
   "]"                 { lexTkn TokenRBracket }
   ","                 { lexTkn TokenComma }
   ";"                 { lexTkn TokenSemiColon }
-  [a-z][a-zA-Z0-9_]*  { lexInputTkn TokenIdent }
+  [a-z][a-zA-Z0-9_']*  { lexInputTkn TokenIdent }
 
 {
 

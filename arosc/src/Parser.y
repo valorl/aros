@@ -164,7 +164,7 @@ ExpC : id                                                     { VariableExp $1 }
     | '{' ExpList '}'                                         { SetExp $2 }
     | '{' '}'                                                 { SetExp [] }
     | '(' Exp ')'                                             { ParenExp $2 }
-    | ExpC '(' ExpList ')'                                    { ApplicationExp $1 $3 }
+    | id '(' ExpList ')'                                    { ApplicationExp $1 $3 }
     | Lambda                                                  { $1 }
     | 'if' Exp '{' Block '}' 'else' '{' Block '}'             { IfExp $2 $4 $8 }
     | cond '{' ExpBlockList otherwise '{' Block '}' '}'       { CondExp $3 $6 }
