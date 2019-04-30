@@ -1,8 +1,11 @@
+{-# LANGUAGE BangPatterns #-}
+
 module Checker where
 
 import Syntax
 import Types
 
+import Data.Maybe
 import Data.Map(Map)
 import qualified Data.Map as M
 import Control.Monad
@@ -45,17 +48,21 @@ checkExp env exp typ =
         Nothing -> error ("Variable '" <> name <> "' not in scope.")
         Just t -> return $ t == typ
 
-    VectorExp e1 e2 -> checkVector env e1 e2
+    VectorExp e1 e2 -> do
+      vecOk <- checkVector env e1 e2
+      if TVector == typ
+      then return vecOk
+      else error ("Vector expression type error: " <> (show exp) <> ". Expected: " <> (show typ))
 
     ListExp exps -> do
-      let TList t = typ
+      let !(TList t) = typ
       collOk <- checkColl env exps t
       if collOk
       then return True
       else error ("")
 
     SetExp exps -> do
-      let TSet t = typ
+      let !(TSet t) = typ
       collOk <- checkColl env exps t
       if collOk
       then return True
@@ -137,6 +144,41 @@ checkExp env exp typ =
       if paramCheck && blockOk
       then return True
       else error errorMsg
+
+    ApplicationExp name params -> do
+      let mbType = M.lookup name env
+      let (Just fnType) = mbType
+      let isFnType = case fnType of
+                       TFunction _ _ -> True
+                       otherwise -> False
+      let (TFunction pTypes bType) = fnType
+      let paramsMatch = (length pTypes) == (length params)
+
+      let msgNotFound = "Function application error: Variable not found: '" <> (show name) <> "'"
+      let msgNotFunction = "Expected variable '" <> (show name)
+                           <> "' to be a function, but was '" <> (show fnType) <> "'."
+      let msgParamsMismatch = "Expected function '" <> (show name)
+                                <> "' to be applied to " <> (show $ length pTypes)
+                                <> "' but was '" <> (show $ length params) <> " instead."
+      let generalMsg = "Function application type error:"
+                        <> "\nName:" <> (show name)
+                        <> "\nParams: " <> (show params)
+                        <> "\nFunction type: " <> (show fnType)
+                        <> "\nExpected type: " <> (show typ)
+
+      if isNothing mbType
+      then error msgNotFound
+      else if not isFnType
+           then error msgNotFunction
+           else if not paramsMatch
+           then error msgParamsMismatch
+           else do
+             let typedParams = zip params pTypes
+             let outputOk = bType == typ
+             paramsOk <- mapM (\(p, t) -> checkExp env p t) typedParams
+             if outputOk && (and paramsOk)
+             then return True
+             else error generalMsg
 
 
 -- VECTOR

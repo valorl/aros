@@ -18,8 +18,14 @@ main = do
   case parsed of
     (Left error) -> putStrLn error
     (Right program) -> do
+      putStrLn "==================== AST ====================="
+      pPrint program
+      putStrLn "================ END OF AST =================="
+      putStrLn ""
+      putStrLn "================== TYPECHECK ================="
       programOk <- checkProgram mempty program
-      print ("Typecheck " <> if programOk then "OK" else "ERROR")
+      putStrLn ("Typecheck " <> if programOk then "OK" else "ERROR")
+      putStrLn "============== END OF TYPECHECK =============="
 
 
 
