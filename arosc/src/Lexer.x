@@ -10,7 +10,7 @@ import Syntax
 %wrapper "monadUserState"
 
 tokens :-
-  " "+                              ;
+  $white+                              ;
   "//".*                            ;
   [\-]?[1-9][0-9]*    { lexInputTkn (TokenIntLit . read) }
   true|false          { lexInputTkn ( TokenBoolLit . (== "true")) }
@@ -23,6 +23,7 @@ tokens :-
   vec                 { lexTkn TokenVec }
   bool                { lexTkn TokenBool }
   grid                { lexTkn TokenGrid }
+  route               { lexTkn TokenRoute }
   crop                { lexTkn TokenCrop }
   and                 { lexTkn TokenAnd }
   or                  { lexTkn TokenOr }
@@ -71,6 +72,7 @@ unlex TokenInt           = "int"
 unlex TokenVec           = "vec"
 unlex TokenBool          = "bool"
 unlex TokenGrid          = "grid"
+unlex TokenRoute         = "route"
 unlex TokenCrop          = "crop"
 unlex TokenAnd           = "and"
 unlex TokenOr            = "or"

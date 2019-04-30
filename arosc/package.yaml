@@ -29,6 +29,7 @@ library:
   dependencies:
     - array
     - containers
+    - pretty-show
 
 executables:
   arosc-exe:

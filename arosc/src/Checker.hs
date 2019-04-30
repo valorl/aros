@@ -274,7 +274,7 @@ checkProgram env (Program decs grid rpath) = do
   decsOk <- checkDeclarations env decs
   let localEnv = M.union (M.fromList(varTypes)) env
   gridOk <- checkGrid localEnv grid
-  rpathOk <- checkRobotPath localEnv rpath
+  rpathOk <- checkRobotRoute localEnv rpath
   let ok = decsOk && gridOk && rpathOk
   if ok
   then return True
@@ -292,8 +292,8 @@ checkGrid env (GridDef bounds points) = do
   then return True
   else error errorMsg
 
-checkRobotPath :: Monad m => Environment -> RobotPath -> m Bool
-checkRobotPath env (RobotPath path) = do
+checkRobotRoute :: Monad m => Environment -> RobotRoute -> m Bool
+checkRobotRoute env (RobotRoute path) = do
   pathOk <- checkExp env path (TList TVector)
   let errorMsg = "Robot path definition type error:"
                  <> "\nPath: " <> (show path)
