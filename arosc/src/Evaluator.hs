@@ -27,14 +27,14 @@ evalTree (Left _) = Left "err"
 -- Parses definitions into a map, then calls handleRobot
 evaluateProgram :: Program -> Map String Value -> Either String String
 evaluateProgram (Program ((Decl dtype ident expr):xs) grd wpts ) defs =
-  case (computeDecl dtype defs expr) of
+  case (computeDecl defs expr) of
     Right computedDecl -> evaluateProgram (Program xs grd wpts) (Map.insert ident computedDecl defs)
     Left e -> Left e
 evaluateProgram (Program [] grd wpts) defs = handleRobot (handleGrid grd defs) wpts defs
 
 
-computeDecl :: DeclType -> Map String Value -> Exp -> Either String Value
-computeDecl dtype defs expr = handleExp defs expr
+computeDecl :: Map String Value -> Exp -> Either String Value
+computeDecl defs expr = handleExp defs expr
 
 handleGrid :: GridDef -> Map String Value -> Either String Value
 handleGrid (GridDef e1 e2) defs = do
@@ -115,8 +115,8 @@ handleExp defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
 
 
 blockHandler :: Map String Value -> Block -> Either String Value
-blockHandler defs (Block ((Decl dtype ident expr):xs) finalExp) =
-  case (computeDecl dtype defs expr) of
+blockHandler defs (Block ((Decl _ ident expr):xs) finalExp) =
+  case (computeDecl defs expr) of
     Left _ -> Left "err"
     Right computedDecl -> blockHandler (Map.insert ident computedDecl defs) (Block xs finalExp)
 blockHandler defs (Block [] finalExp) = handleExp defs finalExp
