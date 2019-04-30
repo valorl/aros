@@ -85,10 +85,20 @@ handleExp defs (UnaryExp uop expr) = do
 
 handleExp defs (LambdaExp strings block) = Right $ TLambda defs strings block
 
---TODO here the lambda gets executed
-handleExp defs (ApplicationExp expr (x:xs)) = do
-  e <- handleExp defs expr
-  return e
+handleExp defs (ApplicationExp ident params) = do
+  lambda <- handleExp defs ident
+  let (TLambda env paramNames block) = lambda
+  let paramMap = makeParamMap paramNames params
+  let newenv = Map.union paramMap env
+  blockHandler newenv block
+  where
+    makeParamMap :: [String] -> [Exp] -> Map String Value
+    makeParamMap (x:xs) (y:ys) =
+      case handleExp defs y of
+        (Right evd) -> Map.insert x evd $ makeParamMap xs ys
+        _ -> Map.empty
+    makeParamMap _ _ = Map.empty
+
 
 handleExp defs (IfExp expr block1  block2) =
   let (Right (TBool evaluated)) = handleExp defs expr in
@@ -103,7 +113,6 @@ handleExp defs (CondExp ((expr,block):xs) otherwiseBlock) =
       else handleExp defs (CondExp xs otherwiseBlock)
 handleExp defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
 
-handleExp _ _ = Left "err"
 
 blockHandler :: Map String Value -> Block -> Either String Value
 blockHandler defs (Block ((Decl dtype ident expr):xs) finalExp) =
