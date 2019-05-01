@@ -20,7 +20,7 @@ data Value = TInt Int
 parsedvars :: Either String Program
 parsedvars = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
 parsedlambda :: Either String Program
-parsedlambda = Parser.parseAros "" "(int -> int) myfunc = a -> { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int b = myfunc (4) ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
+parsedlambda = Parser.parseAros "" "(int -> int) myfunc = a -> { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int b = myfunc (100) ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
 
 evalTree :: Either String Program -> Either String String
 evalTree (Right (Program decls grid wpts)) = evaluateProgram Map.empty decls grid wpts
@@ -29,7 +29,9 @@ evalTree (Left _) = Left "err"
 -- Parses definitions into a map, then calls handleRobot
 evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> [Exp] -> Either String String
 evaluateProgram defs ((Decl _ ident (LambdaExp strings block)):xs) grd wpts = do
-  Left "Breaking my brain"
+  let newLambda = TLambda (Map.insert ident (TLambda Map.empty [] (Block [] (IntegerExp 0))) defs) strings block
+  let newEnv = Map.insert ident newLambda defs
+  evaluateProgram newEnv xs grd wpts
 
 evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
   case (handleExp defs expr) of
@@ -92,8 +94,7 @@ handleExp defs (ApplicationExp ident params) = do
   let (TLambda env paramNames block) = lambda
   let paramMap = makeParamMap paramNames params
   let newenv = Map.union paramMap defs
-  Left $ show paramMap ++ " __ " ++ show newenv
-  -- blockHandler newenv block
+  blockHandler newenv block
   where
     makeParamMap :: [String] -> [Exp] -> Map String Value
     makeParamMap (x:xs) (y:ys) =
