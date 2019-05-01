@@ -17,24 +17,27 @@ data Value = TInt Int
            deriving (Show, Eq, Ord)
 
 
-parsed :: Either String Program
-parsed = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
+parsedvars :: Either String Program
+parsedvars = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
+parsedlambda :: Either String Program
+parsedlambda = Parser.parseAros "" "(int -> int) myfunc = a -> { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int b = myfunc (4) ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
 
 evalTree :: Either String Program -> Either String String
-evalTree (Right x) = evaluateProgram x Map.empty
+evalTree (Right (Program decls grid wpts)) = evaluateProgram Map.empty decls grid wpts
 evalTree (Left _) = Left "err"
 
 -- Parses definitions into a map, then calls handleRobot
-evaluateProgram :: Program -> Map String Value -> Either String String
-evaluateProgram (Program ((Decl dtype ident expr):xs) grd wpts ) defs =
-  case (computeDecl defs expr) of
-    Right computedDecl -> evaluateProgram (Program xs grd wpts) (Map.insert ident computedDecl defs)
+evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> [Exp] -> Either String String
+evaluateProgram defs ((Decl _ ident (LambdaExp strings block)):xs) grd wpts = do
+  Left "Breaking my brain"
+
+evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
+  case (handleExp defs expr) of
+    Right computedDecl -> evaluateProgram (Map.insert ident computedDecl defs) xs grd wpts
     Left e -> Left e
-evaluateProgram (Program [] grd wpts) defs = handleRobot (handleGrid grd defs) wpts defs
+evaluateProgram defs [] grd wpts = handleRobot (handleGrid grd defs) wpts defs
 
 
-computeDecl :: Map String Value -> Exp -> Either String Value
-computeDecl defs expr = handleExp defs expr
 
 handleGrid :: GridDef -> Map String Value -> Either String Value
 handleGrid (GridDef e1 e2) defs = do
@@ -55,7 +58,7 @@ handleExp :: Map String Value -> Exp -> Either String Value
 handleExp defs (VariableExp ident) =
   case ( Map.lookup ident defs ) of
     (Just d) -> return d
-    Nothing -> (Left "err")
+    Nothing -> (Left $ "Lookup err - can't find " ++ ident)
 handleExp defs (ParenExp expr) = handleExp defs expr
 handleExp _ (IntegerExp i) = Right $ TInt i
 handleExp _ (BooleanExp b) = Right $ TBool b
@@ -64,7 +67,7 @@ handleExp defs (VectorExp a b) = do
     ub <- handleExp defs b
     case (ua, ub) of
       ((TInt ia),(TInt ib)) -> return (TVec (ia, ib))
-      _ -> Left "err"
+      _ -> Left $ "VectorExp err" ++ show a ++ " --- " ++ show b
 
 handleExp defs (ListExp expList) = do
   mapped <- mapM (handleExp defs) expList
@@ -83,14 +86,14 @@ handleExp defs (UnaryExp uop expr) = do
   e <- handleExp defs expr
   unaryExpressionHandler uop e
 
-handleExp defs (LambdaExp strings block) = Right $ TLambda defs strings block
 
 handleExp defs (ApplicationExp ident params) = do
   lambda <- handleExp defs ident
   let (TLambda env paramNames block) = lambda
   let paramMap = makeParamMap paramNames params
-  let newenv = Map.union paramMap env
-  blockHandler newenv block
+  let newenv = Map.union paramMap defs
+  Left $ show paramMap ++ " __ " ++ show newenv
+  -- blockHandler newenv block
   where
     makeParamMap :: [String] -> [Exp] -> Map String Value
     makeParamMap (x:xs) (y:ys) =
@@ -113,12 +116,14 @@ handleExp defs (CondExp ((expr,block):xs) otherwiseBlock) =
       else handleExp defs (CondExp xs otherwiseBlock)
 handleExp defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
 
+handleExp _ _ = Left "Shouldn't end here because TLambda gets handled separately"
+
 
 blockHandler :: Map String Value -> Block -> Either String Value
 blockHandler defs (Block ((Decl _ ident expr):xs) finalExp) =
-  case (computeDecl defs expr) of
-    Left _ -> Left "err"
-    Right computedDecl -> blockHandler (Map.insert ident computedDecl defs) (Block xs finalExp)
+  case (handleExp defs expr) of
+    Left _ -> Left "BlockHandler err"
+    Right handledExp -> blockHandler (Map.insert ident handledExp defs) (Block xs finalExp)
 blockHandler defs (Block [] finalExp) = handleExp defs finalExp
 
 
@@ -149,7 +154,7 @@ binaryOperationHandler Gt (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 
 binaryOperationHandler Lt (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
 binaryOperationHandler Gte (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
 binaryOperationHandler Lte (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
-binaryOperationHandler _ _ _ = Left "err"
+binaryOperationHandler _ _ _ = Left "NoBop err"
 
 unaryExpressionHandler :: UnaryOp -> Value -> Either String Value
 unaryExpressionHandler Not (TBool e) = Right $ TBool $ not e
@@ -157,10 +162,10 @@ unaryExpressionHandler Head (TList (x:_)) = Right x
 unaryExpressionHandler Tail (TList (_:xs)) = Right $ TList xs
 unaryExpressionHandler Vecx (TVec (a,_)) = Right $ TInt a
 unaryExpressionHandler Vecy (TVec (_,b)) = Right $ TInt b
-unaryExpressionHandler _ _ = Left "err"
+unaryExpressionHandler _ _ = Left "NoUop err"
 
 
 -- TODO
 handleRobot :: Either String Value -> [Exp] -> Map String Value -> Either String String
 handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show defs) ++ "  ------  " ++ (show $ Set.toList playmap) ++ " sized " ++ (show playsize)
-handleRobot _ _ _ = Left "err"
+handleRobot _ _ _ = Left "Robot err"
