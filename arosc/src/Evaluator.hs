@@ -93,7 +93,7 @@ handleExp defs (ApplicationExp ident params) = do
   lambda <- handleExp defs ident
   let (TLambda env paramNames block) = lambda
   let paramMap = makeParamMap paramNames params
-  let newenv = Map.union paramMap defs
+  let newenv = Map.union paramMap env
   blockHandler newenv block
   where
     makeParamMap :: [String] -> [Exp] -> Map String Value
