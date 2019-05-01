@@ -91,9 +91,11 @@ handleExp defs (UnaryExp uop expr) = do
 
 handleExp defs (ApplicationExp ident params) = do
   lambda <- handleExp defs ident
+  let (VariableExp sident) = ident
   let (TLambda env paramNames block) = lambda
   let paramMap = makeParamMap paramNames params
-  let newenv = Map.union paramMap env
+  let unionenv = Map.union paramMap env
+  let newenv = Map.insert sident lambda unionenv
   blockHandler newenv block
   where
     makeParamMap :: [String] -> [Exp] -> Map String Value
@@ -119,7 +121,7 @@ handleExp defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
 
 handleExp _ _ = Left "Shouldn't end here because TLambda gets handled separately"
 
-
+-- TODO intermediary method that handles lambda or this won't work
 blockHandler :: Map String Value -> Block -> Either String Value
 blockHandler defs (Block ((Decl _ ident expr):xs) finalExp) =
   case (handleExp defs expr) of
