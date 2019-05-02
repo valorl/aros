@@ -72,7 +72,7 @@ Program : GridDef RobotRoute                                  { Program [] $1 $2
         | DeclarationList GridDef RobotRoute                  { Program $1 $2 $3 }
 
 RobotRoute ::                                                 { RobotRoute }
-RobotRoute : route Exp                                        { RobotRoute $2}
+RobotRoute : route Exp ',' Exp                                { RobotRoute $2 $4}
 
 Uop ::                                                        { UnaryOp }
 Uop : not                                                     { Not }
@@ -145,14 +145,14 @@ ExpB ::                                                       { Exp }
 ExpB : ExpC                                                   { $1 }
      | Uop ExpC                                               { UnaryExp $1 $2 }
 
-IdList ::                                                     { [String] }
-IdList : id ',' id                                            { [$1, $3] }
-       | id ',' IdList                                        { $1 : $3 }
+IdList ::                                                     { [(DeclType, String)] }
+IdList : Type id                                              { [($1,$2)] }
+       | Type id ',' IdList                                   { ($1,$2) : $4 }
 
 Lambda ::                                                     { Exp }
-Lambda : '(' ')' '->' '{' Block '}'                           { LambdaExp [] $5 }
-       | id '->' '{' Block '}'                                { LambdaExp [$1] $4 }
-       | '(' IdList ')' '->' '{' Block '}'                    { LambdaExp $2 $6 }
+Lambda : '(' ')' '->' Type '{' Block '}'                      { LambdaExp [] $4 $6 }
+       | '(' IdList ')' '->' Type '{' Block '}'               { LambdaExp $2 $5 $7 }
+       |  Type id '->' Type '{' Block '}'                     { LambdaExp [($1,$2)] $4 $6 }
 
 ExpC ::                                                       { Exp }
 ExpC : id                                                     { VariableExp $1 }
@@ -164,7 +164,8 @@ ExpC : id                                                     { VariableExp $1 }
     | '{' ExpList '}'                                         { SetExp $2 }
     | '{' '}'                                                 { SetExp [] }
     | '(' Exp ')'                                             { ParenExp $2 }
-    | id '(' ExpList ')'                                    { ApplicationExp $1 $3 }
+    | id '(' ExpList ')'                                      { ApplicationExp (VariableExp $1) $3 }
+    | Lambda '(' ExpList ')'                                  { ApplicationExp $1 $3 }
     | Lambda                                                  { $1 }
     | 'if' Exp '{' Block '}' 'else' '{' Block '}'             { IfExp $2 $4 $8 }
     | cond '{' ExpBlockList otherwise '{' Block '}' '}'       { CondExp $3 $6 }

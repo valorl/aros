@@ -98,8 +98,8 @@ data Exp = VariableExp String
   | SetExp [Exp]
   | BinaryExp Exp BinaryOp Exp
   | UnaryExp UnaryOp Exp
-  | LambdaExp [String] Block
-  | ApplicationExp String [Exp]
+  | LambdaExp [(DeclType,String)] DeclType Block 
+  | ApplicationExp Exp [Exp]
   | IfExp Exp Block Block
   | CondExp [(Exp, Block)] Block
   deriving (Eq, Show)
@@ -107,7 +107,7 @@ data Exp = VariableExp String
 data GridDef = GridDef Exp Exp
   deriving (Eq, Show)
 
-data RobotRoute = RobotRoute Exp
+data RobotRoute = RobotRoute Exp Exp
   deriving (Eq, Show)
 
 data Program = Program [Declaration] GridDef RobotRoute
