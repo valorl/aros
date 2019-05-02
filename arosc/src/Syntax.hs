@@ -12,6 +12,7 @@ data Token = TokenIntLit Int
            | TokenVec
            | TokenBool
            | TokenGrid
+           | TokenRoute
            | TokenCrop
            | TokenAnd
            | TokenOr
@@ -19,7 +20,6 @@ data Token = TokenIntLit Int
            | TokenElse
            | TokenCond
            | TokenOtherwise
-           | TokenRouteRobot
            | TokenArrow
            | TokenPlus
            | TokenMinus
@@ -47,11 +47,11 @@ data Token = TokenIntLit Int
            | TokenSemiColon
            | TokenIdent String
            | TokenEOF
-           deriving (Eq,Show, Ord)
+           deriving (Eq,Show)
 
 
 data UnaryOp = Not | Head | Tail | Vecx | Vecy
-         deriving (Eq, Show, Ord)
+         deriving (Eq, Show)
 
 data BinaryOp = Plus
   | Minus
@@ -71,7 +71,7 @@ data BinaryOp = Plus
   | Lte
   | Equal
   | NotEqual
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show)
 
 
 data DeclType = TypeInt
@@ -80,14 +80,14 @@ data DeclType = TypeInt
   | TypeList DeclType
   | TypeSet DeclType
   | TypeLambda [DeclType] DeclType
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show)
 
 
 data Declaration = Decl DeclType String Exp
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show)
 
 data Block = Block [Declaration] Exp
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show)
 
 data Exp = VariableExp String
   | ParenExp Exp
@@ -98,13 +98,17 @@ data Exp = VariableExp String
   | SetExp [Exp]
   | BinaryExp Exp BinaryOp Exp
   | UnaryExp UnaryOp Exp
-  | LambdaExp [String] Block
+  | LambdaExp [(DeclType,String)] DeclType Block 
   | ApplicationExp Exp [Exp]
   | IfExp Exp Block Block
   | CondExp [(Exp, Block)] Block
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show)
 
 data GridDef = GridDef Exp Exp
-  deriving (Eq, Show, Ord)
-data Program = Program [Declaration] GridDef [Exp]
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show)
+
+data RobotRoute = RobotRoute Exp Exp
+  deriving (Eq, Show)
+
+data Program = Program [Declaration] GridDef RobotRoute
+  deriving (Eq, Show)
