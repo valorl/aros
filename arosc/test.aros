@@ -1,0 +1,14 @@
+(vec, int -> {vec}) hr = (s, l) -> {
+    if(l == 0){
+        {}
+    }
+    else{
+        int l'= l - 1;
+        int x = vecx s;
+        int y = vecy s + l';
+        {<x, y>} <> hr(s, l')
+    }
+};
+
+grid <10, 10>, hr(<1,1>, 5)
+route []

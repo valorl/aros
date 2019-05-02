@@ -3,7 +3,7 @@ module Main where
 import System.Environment
 
 import Parser (parseAros)
-import Checker (checkProgram)
+-- import Checker (checkProgram)
 
 import Text.Show.Pretty (ppShow, pPrint)
 
@@ -23,7 +23,8 @@ main = do
       putStrLn "================ END OF AST =================="
       putStrLn ""
       putStrLn "================== TYPECHECK ================="
-      programOk <- checkProgram mempty program
+      -- programOk <- checkProgram mempty program
+      let programOk = True -- TODO
       putStrLn ("Typecheck " <> if programOk then "OK" else "ERROR")
       putStrLn "============== END OF TYPECHECK =============="
 

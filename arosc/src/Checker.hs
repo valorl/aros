@@ -9,12 +9,16 @@ import Data.Maybe
 import Data.Map(Map)
 import qualified Data.Map as M
 import Control.Monad
+import Control.Monad.IO.Class
 
 import Text.Show.Pretty (ppShow)
 
 
 type Name = String
 type Environment = Map Name Type
+
+data LogMsg = Error String | Info String
+
 
 ifexp = IfExp (BooleanExp False)
   (Block
@@ -94,13 +98,13 @@ checkExp env exp typ =
           isCompare <- checkCompareBinaryOp env op l r
           return (isBool || isCompare)
         TList _ -> do
-          isList <- checkListBinaryOp env op l r typ
+          -- isList <- checkListBinaryOp env op l r typ
           isCons <- checkConsBinaryOp env op l r typ
-          return (isList || isCons)
+          return (isCons)
         TSet _ -> do
           isSet <- checkSetBinaryOp env op l r typ
-          isSetVec <- checkSetVecBinaryOp env op l r
-          return (isSet || isSetVec)
+          -- isSetVec <- checkSetVecBinaryOp env op l r
+          return (isSet)
         otherwise -> return False
       if ok
       then return True
@@ -132,53 +136,55 @@ checkExp env exp typ =
       then return True
       else error errorMsg
 
-    LambdaExp names block -> do
-      let (TFunction pTypes bType) = typ
-      let errorMsg = "Lambda expression type error:\n"
-                   <> "Params: " <> (show names)
-                   <> "\nBlock: " <> (show block)
-                   <> "\nType: " <> (show typ)
-      let paramCheck = (length names) == (length pTypes)
-      let lambdaEnv = M.fromList(zip names pTypes) `M.union` env
-      blockOk <- checkBlock lambdaEnv block bType
-      if paramCheck && blockOk
-      then return True
-      else error errorMsg
+    -- TODO: Adjust for new typed lambdas
+    -- LambdaExp names block -> do
+    --   let (TFunction pTypes bType) = typ
+    --   let errorMsg = "Lambda expression type error:\n"
+    --                <> "Params: " <> (show names)
+    --                <> "\nBlock: " <> (show block)
+    --                <> "\nType: " <> (show typ)
+    --   let paramCheck = (length names) == (length pTypes)
+    --   let lambdaEnv = M.fromList(zip names pTypes) `M.union` env
+    --   blockOk <- checkBlock lambdaEnv block bType
+    --   if paramCheck && blockOk
+    --   then return True
+    --   else error errorMsg
 
-    ApplicationExp name params -> do
-      let mbType = M.lookup name env
-      let (Just fnType) = mbType
-      let isFnType = case fnType of
-                       TFunction _ _ -> True
-                       otherwise -> False
-      let (TFunction pTypes bType) = fnType
-      let paramsMatch = (length pTypes) == (length params)
+    -- TODO
+    -- ApplicationExp name params -> do
+    --   let mbType = M.lookup name env
+    --   let (Just fnType) = mbType
+    --   let isFnType = case fnType of
+    --                    TFunction _ _ -> True
+    --                    otherwise -> False
+    --   let (TFunction pTypes bType) = fnType
+    --   let paramsMatch = (length pTypes) == (length params)
 
-      let msgNotFound = "Function application error: Variable not found: '" <> (show name) <> "'"
-      let msgNotFunction = "Expected variable '" <> (show name)
-                           <> "' to be a function, but was '" <> (show fnType) <> "'."
-      let msgParamsMismatch = "Expected function '" <> (show name)
-                                <> "' to be applied to " <> (show $ length pTypes)
-                                <> "' but was '" <> (show $ length params) <> " instead."
-      let generalMsg = "Function application type error:"
-                        <> "\nName:" <> (show name)
-                        <> "\nParams: " <> (show params)
-                        <> "\nFunction type: " <> (show fnType)
-                        <> "\nExpected type: " <> (show typ)
+    --   let msgNotFound = "Function application error: Variable not found: '" <> (show name) <> "'"
+    --   let msgNotFunction = "Expected variable '" <> (show name)
+    --                        <> "' to be a function, but was '" <> (show fnType) <> "'."
+    --   let msgParamsMismatch = "Expected function '" <> (show name)
+    --                             <> "' to be applied to " <> (show $ length pTypes)
+    --                             <> "' but was '" <> (show $ length params) <> " instead."
+    --   let generalMsg = "Function application type error:"
+    --                     <> "\nName:" <> (show name)
+    --                     <> "\nParams: " <> (show params)
+    --                     <> "\nFunction type: " <> (show fnType)
+    --                     <> "\nExpected type: " <> (show typ)
 
-      if isNothing mbType
-      then error msgNotFound
-      else if not isFnType
-           then error msgNotFunction
-           else if not paramsMatch
-           then error msgParamsMismatch
-           else do
-             let typedParams = zip params pTypes
-             let outputOk = bType == typ
-             paramsOk <- mapM (\(p, t) -> checkExp env p t) typedParams
-             if outputOk && (and paramsOk)
-             then return True
-             else error generalMsg
+    --   if isNothing mbType
+    --   then error msgNotFound
+    --   else if not isFnType
+    --        then error msgNotFunction
+    --        else if not paramsMatch
+    --        then error msgParamsMismatch
+    --        else do
+    --          let outputOk = bType == typ
+    --          let typedParams = zip params pTypes
+    --          paramsOk <- mapM (\(p, t) -> checkExp env p t) typedParams
+    --          if outputOk && (and paramsOk)
+    --          then return True
+    --          else error generalMsg
 
 
 -- VECTOR
@@ -266,7 +272,9 @@ checkConsBinaryOp env op e1 e2 typ = do
   let (TList t) = typ
   e1ok <- checkExp env e1 t
   e2ok <- checkExp env e2 typ
-  return $ and [opOk, e1ok, e2ok]
+  if (and [opOk, e1ok, e2ok])
+  then return True
+  else error $ "Cons operation for '" <> (show e1) <> "' and '" <> (show e2) <>"' invalid."
 
 checkSetBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> Type -> m Bool
 checkSetBinaryOp env op e1 e2 typ = do
@@ -312,21 +320,22 @@ checkDeclarations env decs
       then Just (M.insert name t env')
       else Nothing
 
-checkProgram :: Monad m => Environment -> Program -> m Bool
-checkProgram env (Program decs grid rpath) = do
-  let errorMsg = "Program (root) type error:"
-                 <> "\nDeclarations: " <> (show decs)
-                 <> "\nGrid: " <> (show grid)
-                 <> "\nRobot Path: " <> (show rpath)
-  let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
-  decsOk <- checkDeclarations env decs
-  let localEnv = M.union (M.fromList(varTypes)) env
-  gridOk <- checkGrid localEnv grid
-  rpathOk <- checkRobotRoute localEnv rpath
-  let ok = decsOk && gridOk && rpathOk
-  if ok
-  then return True
-  else error errorMsg
+-- TODO
+-- checkProgram :: Monad m => Environment -> Program -> m Bool
+-- checkProgram env (Program decs grid rpath) = do
+--   let errorMsg = "Program (root) type error:"
+--                  <> "\nDeclarations: " <> (show decs)
+--                  <> "\nGrid: " <> (show grid)
+--                  <> "\nRobot Path: " <> (show rpath)
+--   let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
+--   decsOk <- checkDeclarations env decs
+--   let localEnv = M.union (M.fromList(varTypes)) env
+--   gridOk <- checkGrid localEnv grid
+--   rpathOk <- checkRobotRoute localEnv rpath
+--   let ok = decsOk && gridOk && rpathOk
+--   if ok
+--   then return True
+--   else error errorMsg
 
 
 checkGrid :: Monad m => Environment -> GridDef -> m Bool
@@ -340,14 +349,15 @@ checkGrid env (GridDef bounds points) = do
   then return True
   else error errorMsg
 
-checkRobotRoute :: Monad m => Environment -> RobotRoute -> m Bool
-checkRobotRoute env (RobotRoute path) = do
-  pathOk <- checkExp env path (TList TVector)
-  let errorMsg = "Robot path definition type error:"
-                 <> "\nPath: " <> (show path)
-  if pathOk
-  then return True
-  else error errorMsg
+-- TODO
+-- checkRobotRoute :: Monad m => Environment -> RobotRoute -> m Bool
+-- checkRobotRoute env (RobotRoute start end) = do
+--   pathOk <- checkExp env path (TList TVector)
+--   let errorMsg = "Robot path definition type error:"
+--                  <> "\nPath: " <> (show path)
+--   if pathOk
+--   then return True
+--   else error errorMsg
 
 
 

@@ -30,6 +30,7 @@ library:
     - array
     - containers
     - pretty-show
+    - transformers
 
 executables:
   arosc-exe:
