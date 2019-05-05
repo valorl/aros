@@ -125,9 +125,6 @@ declstringpairToStringHelper :: [(DeclType, String)] -> [String]
 declstringpairToStringHelper ((_,s):xs) = s : declstringpairToStringHelper xs
 declstringpairToStringHelper [] = []
 
-et :: Either String String
-et = evalTree parsedRec
-
 binaryOperationHandler :: BinaryOp -> Value -> Value -> Either String Value
 binaryOperationHandler Plus  (TInt i) (TInt j) = Right $ TInt $ i+j
 binaryOperationHandler Minus (TInt i) (TInt j) = Right $ TInt $ i-j
