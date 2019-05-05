@@ -18,14 +18,22 @@ data Value = TInt Int
 
 
 parsedvars = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+-- random calcs
 parsedSimpleFunc = Parser.parseAros "" "( int -> int) myfunc = (int a)  -> int { 2 * a } ; int res = myfunc (10) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
-parsedRec = Parser.parseAros "" "(int -> int) myfunc = (int a) -> int { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int b = myfunc (100) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+-- look for res = 20
+parsedRec = Parser.parseAros "" "(int -> int) myfunc = (int a) -> int { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int res = myfunc (100) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+-- look for res = 5050 == foldr1 (+) [1..100]
 parsedCurry = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> (int -> int) { a*b } ; (int -> int) mycurriedfunc = myfunc (2) ; int res = mycurriedfunc (210) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+-- look for res = 420
+funcAsParam = Parser.parseAros ""  "((int -> int), int -> int) myfunc = ((int -> int) f, int x) -> int { f(x) } ; (int -> int) double = (int x) -> int { 2 * x } ; int res = myfunc(double, 210) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+parsedRecCurried = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> int { if (b <= 1) { 1 } else { b + myfunc ( a, b - a ) } } ; (int->int) curried = myfunc(1) ; int res = curried ( 100 ) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
 
-
-evalTree :: Either String Program -> Either String String
-evalTree (Right (Program decls grid wpts)) = evaluateProgram Map.empty decls grid wpts
-evalTree (Left _) = Left "err"
+evalTree :: Either String Program -> String
+evalTree (Right (Program decls grid wpts)) =
+  case evaluateProgram Map.empty decls grid wpts of
+    (Right x) -> show x
+    (Left err) -> err
+evalTree (Left _) = "Program wasn't parsed correctly"
 
 -- Parses definitions into a map, then calls handleRobot
 evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> RobotRoute -> Either String String
@@ -113,7 +121,7 @@ blockHandler defs (Block [] finalExp) = expHandler "" defs finalExp
 curryHandler :: String -> Map String Value -> Map String Value -> [String] -> [Exp] -> Block -> Either String Value
 curryHandler identifier closureenv origenv (x:xs) (y:ys) block = do
   evalled <- expHandler x origenv y
-  let newenv = Map.insert x evalled closureenv
+  let newenv = Map.insert x evalled (Map.union closureenv origenv)
   curryHandler identifier newenv origenv xs ys block
 
 curryHandler identifier closureenv _ e@(_:_) [] block =
@@ -152,7 +160,7 @@ binaryOperationHandler Gt (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 
 binaryOperationHandler Lt (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 < j1 ) && ( i2 <  j2)
 binaryOperationHandler Gte (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 >= j1 ) && ( i2 >=  j2)
 binaryOperationHandler Lte (TVec (i1,j1)) (TVec (i2,j2)) = Right $ TBool $  ( i1 <= j1 ) && ( i2 <=  j2)
-binaryOperationHandler _ _ _ = Left "NoBop err"
+binaryOperationHandler a _ _  = Left $ "NoBop err on a " ++ show a ++ " operation"
 
 unaryExpressionHandler :: UnaryOp -> Value -> Either String Value
 unaryExpressionHandler Not (TBool e) = Right $ TBool $ not e
@@ -162,8 +170,8 @@ unaryExpressionHandler Vecx (TVec (a,_)) = Right $ TInt a
 unaryExpressionHandler Vecy (TVec (_,b)) = Right $ TInt b
 unaryExpressionHandler _ _ = Left "NoUop err"
 
-
 -- TODO
 handleRobot :: Either String Value -> RobotRoute -> Map String Value -> Either String String
-handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show defs) ++ "  ------  " ++ (show $ Set.toList playmap) ++ " sized " ++ (show playsize)
+--handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show defs) ++ "  ------  " ++ (show $ Set.toList playmap) ++ " sized " ++ (show playsize)
+handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show $ Map.toList defs)
 handleRobot _ _ _ = Left "Robot err"
