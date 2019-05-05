@@ -45,12 +45,6 @@ handleGrid (GridDef e1 e2) defs = do
       (TSet m) -> return $ TGridSet m playsize
       _ -> Left "Didn't get a Set"
 
-testVexp :: Exp
-testVexp = VectorExp (IntegerExp 69) (IntegerExp 420)
-testListExp :: Exp
-testListExp = ListExp [(IntegerExp 1), (IntegerExp 2), (IntegerExp 3)]
-testSetExp :: Exp
-testSetExp = SetExp [(IntegerExp 1), (IntegerExp 2), (IntegerExp 3)]
 
 expHandler :: String -> Map String Value -> Exp -> Either String Value
 expHandler _ defs (VariableExp ident) =
