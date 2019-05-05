@@ -28,7 +28,7 @@ evalTree (Right (Program decls grid wpts)) = evaluateProgram Map.empty decls gri
 evalTree (Left _) = Left "err"
 
 -- Parses definitions into a map, then calls handleRobot
-evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> [Exp] -> Either String String
+evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> RobotRoute -> Either String String
 evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
   case (expHandler ident defs expr) of
     Right computedDecl -> evaluateProgram (Map.insert ident computedDecl defs) xs grd wpts
@@ -84,8 +84,8 @@ expHandler _ defs (UnaryExp uop expr) = do
   e <- expHandler "" defs expr
   unaryExpressionHandler uop e
 
-expHandler identifier defs (LambdaExp strings block) = do
-  return $ TLambda (Map.insert identifier (TLambda Map.empty [] (Block [] (IntegerExp 0))) defs) strings block
+expHandler identifier defs (LambdaExp strings _ block) = do
+  return $ TLambda (Map.insert identifier (TLambda Map.empty [] (Block [] (IntegerExp 0))) defs) (declstringpairToStringHelper strings) block
 
 expHandler identifier defs (ApplicationExp ident params) = do
   lambda <- expHandler "" defs ident
@@ -123,9 +123,13 @@ curryHandler identifier closureenv origenv (x:xs) (y:ys) block = do
   curryHandler identifier newenv origenv xs ys block
 
 curryHandler identifier closureenv _ e@(_:_) [] block =
-  expHandler identifier closureenv (LambdaExp e block)
+  expHandler identifier closureenv (LambdaExp (map (\x -> (TypeInt, x)) e) TypeInt block) --HACK!!
 curryHandler _ closureenv _ [] [] block = blockHandler closureenv block
 curryHandler _ _ _ [] (_:_) _ = Left "Too many args to function"
+
+declstringpairToStringHelper :: [(DeclType, String)] -> [String]
+declstringpairToStringHelper ((_,s):xs) = s : declstringpairToStringHelper xs
+declstringpairToStringHelper [] = []
 
 et :: Either String String
 et = evalTree parsedRec
@@ -169,6 +173,6 @@ unaryExpressionHandler _ _ = Left "NoUop err"
 
 
 -- TODO
-handleRobot :: Either String Value -> [Exp] -> Map String Value -> Either String String
+handleRobot :: Either String Value -> RobotRoute -> Map String Value -> Either String String
 handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show defs) ++ "  ------  " ++ (show $ Set.toList playmap) ++ " sized " ++ (show playsize)
 handleRobot _ _ _ = Left "Robot err"

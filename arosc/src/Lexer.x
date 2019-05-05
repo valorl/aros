@@ -30,7 +30,7 @@ tokens :-
   else                { lexTkn TokenElse }
   cond                { lexTkn TokenCond }
   otherwise           { lexTkn TokenOtherwise }
-  routeRobot          { lexTkn TokenRouteRobot }
+  routeRobot          { lexTkn TokenRoute }
   "->"                { lexTkn TokenArrow }
   "+"                 { lexTkn TokenPlus }
   "-"                 { lexTkn TokenMinus }
@@ -79,7 +79,7 @@ unlex TokenIf            = "if"
 unlex TokenElse          = "else"
 unlex TokenCond          = "cond"
 unlex TokenOtherwise     = "otherwise"
-unlex TokenRouteRobot    = "routeRobot"
+unlex TokenRoute         = "routeRobot"
 unlex TokenArrow         = "->"
 unlex TokenPlus          = "+"
 unlex TokenMinus         = "-"
