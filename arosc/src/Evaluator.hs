@@ -17,10 +17,10 @@ data Value = TInt Int
            deriving (Show, Eq, Ord)
 
 
-parsedvars = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
-parsedSimpleFunc = Parser.parseAros "" "( int -> int) myfunc = a -> { 2 * a } ; int b = myfunc (10) ; grid < 2 , 4 > , { <1,1> } routeRobot [<1,1>]"
-parsedRec = Parser.parseAros "" "(int -> int) myfunc = a -> { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int b = myfunc (100) ;  grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
-parsedCurry = Parser.parseAros "" "(int, int -> int) myfunc = (a,b) -> { a*b } ; (int -> int) mycurriedfunc = myfunc (2) ; int res = mycurriedfunc (210) ; grid < 2 , 4 > , { <1,1> } routeRobot [ <1,1> ] "
+parsedvars = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+parsedSimpleFunc = Parser.parseAros "" "( int -> int) myfunc = (int a)  -> int { 2 * a } ; int res = myfunc (10) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+parsedRec = Parser.parseAros "" "(int -> int) myfunc = (int a) -> int { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int b = myfunc (100) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+parsedCurry = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> (int -> int) { a*b } ; (int -> int) mycurriedfunc = myfunc (2) ; int res = mycurriedfunc (210) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
 
 
 evalTree :: Either String Program -> Either String String
