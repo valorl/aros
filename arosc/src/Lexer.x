@@ -10,9 +10,9 @@ import Syntax
 %wrapper "monadUserState"
 
 tokens :-
-  " "+                              ;
+  $white+                              ;
   "//".*                            ;
-  [\-]?[1-9][0-9]*    { lexInputTkn (TokenIntLit . read) }
+  [\-]?(0|[1-9][0-9]*) { lexInputTkn (TokenIntLit . read) }
   true|false          { lexInputTkn ( TokenBoolLit . (== "true")) }
   not                 { lexTkn TokenNot }
   head                { lexTkn TokenHead }
