@@ -23,7 +23,7 @@ main = do
       putStrLn "================ END OF AST =================="
       putStrLn ""
       putStrLn "================== TYPECHECK ================="
-      -- programOk <- checkProgram mempty program
+      programOk <- checkProgram mempty program
       let programOk = True -- TODO
       putStrLn ("Typecheck " <> if programOk then "OK" else "ERROR")
       putStrLn "============== END OF TYPECHECK =============="

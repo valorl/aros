@@ -1,23 +1,28 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 
 module Checker where
 
 import Syntax
 import Types
 
+import Data.List
 import Data.Maybe
 import Data.Map(Map)
 import qualified Data.Map as M
-import Control.Monad
+import Control.Monad.Writer
+import Control.Monad.Trans.Maybe
 import Control.Monad.IO.Class
 
-import Text.Show.Pretty (ppShow)
+import Text.Show.Pretty (ppShow, pPrint)
 
 
 type Name = String
 type Environment = Map Name Type
 
 data LogMsg = Error String | Info String
+  deriving Show
 
 
 ifexp = IfExp (BooleanExp False)
@@ -36,119 +41,142 @@ ifexp = IfExp (BooleanExp False)
      ]
      (UnaryExp Vecy (VariableExp "myVec2")))
 
+-- typeMismatchMsg :: String -> [(Type,Type)] -> String
+-- typeMismatchMsg msg tuples = msg <> "\n" <> msgs
+--   where mismatches = filter (\(x,y) -> x /= y) tuples
+--         toMsg (expected, got) =
+--           "Expected '" ++ (show expected) ++ "', but got '" ++ (show got) ++ "'."
+--         msgs = concat $ intersperse "\n" (map toMsg mismatches)
 
-checkExp :: Monad m => Environment -> Exp -> Type -> m Bool
-checkExp env exp typ =
-  case exp of
+-- typesMatch :: [(Type, Type)] -> Bool
+-- typesMatch tuples = and $ map (\(x,y) -> x == y) tuples
 
-    IntegerExp _ -> return $ TInteger == typ
+logErr :: String -> Writer [LogMsg] ()
+logErr str = tell [Error str]
 
-    BooleanExp _ -> return $ TBoolean == typ
+type MWType = MaybeT (Writer [LogMsg]) Type
+type MWBool = MaybeT (Writer [LogMsg]) Bool
+type WBool = Writer [LogMsg] Bool
 
-    ParenExp exp -> checkExp env exp typ
+runChecker :: Exp -> IO ()
+runChecker exp = do
+  let (result, log) = runWriter $ runMaybeT $ checkExp mempty exp
+  pPrint result
+  print log
+
+
+
+checkExp :: Environment -> Exp -> MWType
+checkExp env exp = case exp of
+    IntegerExp _ -> return TInteger
+
+    BooleanExp _ -> return TBoolean
+
+    ParenExp exp -> checkExp env exp
 
     VariableExp name ->
       case M.lookup name env of
-        Nothing -> error ("Variable '" <> name <> "' not in scope.")
-        Just t -> return $ t == typ
+        Nothing -> do
+          lift $ logErr $ "Variable error: Variable '" <> name <> "' not in scope."
+          mzero
+        Just t -> return t
 
     VectorExp e1 e2 -> do
-      vecOk <- checkVector env e1 e2
-      if TVector == typ
-      then return vecOk
-      else error ("Vector expression type error: " <> (show exp) <> ". Expected: " <> (show typ))
+      t1 <- checkExp env e1
+      t2 <- checkExp env e2
+      let intsOk = (t1 == TInteger) && (t2 == TInteger)
+      if (not intsOk)
+      then do
+        lift $ logErr $
+          "Vector error: Expected <TInteger, TInteger> but got <" <> (show t1) <> ", " <> (show t2) <> ">"
+        mzero
+      else
+        return TVector
 
     ListExp exps -> do
-      let !(TList t) = typ
-      collOk <- checkColl env exps t
-      if collOk
-      then return True
-      else error ("")
+      if (null exps)
+      then return $ TList TAny
+      else do
+        types@(t:ts) <- mapM (checkExp env) exps
+        let homo = and $ map (== t) ts
+        if homo
+        then return $ TList t
+        else do
+          lift $ logErr $ "Found heterogenous list with types: " <> (show types)
+          mzero
 
     SetExp exps -> do
-      let !(TSet t) = typ
-      collOk <- checkColl env exps t
-      if collOk
-      then return True
-      else error ("Found heterogenous set expression.")
+      if (null exps)
+      then return $ TSet TAny
+      else do
+        types@(t:ts) <- mapM (checkExp env) exps
+        let homo = and $ map (== t) ts
+        if homo
+        then return $ TSet t
+        else do
+          lift $ logErr $ "Found heterogenous set with types: " <> (show types)
+          mzero
 
     UnaryExp op exp -> do
-      let errorMsg = "Unary operation '" <> (show op) <> "' applied to '"
-                     <> (ppShow exp) <> "' was not " <> (show typ) <> "."
-      ok <- case typ of
-        TInteger -> checkVecUnaryOp env op exp
-        TBoolean -> checkBoolUnaryOp env op exp
-        TList _ -> checkListUnaryOp env op exp typ
-        otherwise -> return False
-      if ok
-      then return True
-      else error errorMsg
+      t <- checkExp env exp
+      let checkers = [checkVecUnaryOp,
+                      checkBoolUnaryOp,
+                      checkListUnaryHeadOp, checkListUnaryTailOp]
+      let results = map (\f -> f op t) checkers
+      let successes = catMaybes results
+      handleUnaryResults successes op t
 
-    BinaryExp l op r -> do
-      let errorMsg = "Binary operation '" <> (show op) <> "' applied to '"
-                      <> (ppShow l) <> "' and '" <> (ppShow r) <>  "' was not " <> (show typ) <> "."
-      ok <- case typ of
-        TInteger -> checkIntBinaryOp env op l r
-        TVector -> do
-          isVec <- checkVecBinaryOp env op l r
-          isIntVec <- checkIntVecBinaryOp env op l r
-          return (isVec || isIntVec)
-        TBoolean -> do
-          isBool <- checkBoolBinaryOp env op l r
-          isCompare <- checkCompareBinaryOp env op l r
-          return (isBool || isCompare)
-        TList _ -> do
-          -- isList <- checkListBinaryOp env op l r typ
-          isCons <- checkConsBinaryOp env op l r typ
-          return (isCons)
-        TSet _ -> do
-          isSet <- checkSetBinaryOp env op l r typ
-          -- isSetVec <- checkSetVecBinaryOp env op l r
-          return (isSet)
-        otherwise -> return False
-      if ok
-      then return True
-      else error errorMsg
+    BinaryExp e1 op e2 -> do
+      t1 <- checkExp env e1
+      t2 <- checkExp env e2
+      let checkers = [checkIntBinaryOp, checkVecBinaryOp, checkIntVecBinaryOp,
+                      checkBoolBinaryOp, checkBoolCompareBinaryOp,
+                      checkListBinaryConsOp, checkListBinaryOp,
+                      checkSetVecBinaryOp, checkSetBinaryOp]
+      let results = map (\f -> f t1 op t2) checkers
+      let successes = catMaybes results
+      handleBinaryResults successes op t1 t2
 
     IfExp cond b1 b2 -> do
-      let errorMsg = "If expression type error:\n"
-                   <> "Condition: " <> (show cond)
-                   <> "\nTrue Block: " <> (show b1)
-                   <> "\nFalseBlock: " <> (show b2)
-      condOk <- checkExp env cond TBoolean
-      b1ok <- checkBlock env b1 typ
-      b2ok <- checkBlock env b2 typ
-      let ok = and [condOk, b1ok, b2ok]
-      if ok
-      then return True
-      else error errorMsg
+      tCond <- checkExp env cond
+      let condOk = tCond == TBoolean
+      when (not condOk) $
+        lift $ logErr $ "Invalid if expression: condition was " <> (show tCond)
+      t1 <- checkBlock env b1
+      t2 <- checkBlock env b2
+      let blocksOk = t1 == t2
+      when (not blocksOk) $
+        lift $ logErr $ "Invalid if expression: inconsistent return types " <> (show t1) <> " and " <> (show t2)
+      if condOk && blocksOk
+      then return t1
+      else mzero
 
     CondExp condBlocks otherwiseBlock -> do
-      let (exps, blocks) = unzip condBlocks
-      let errorMsg = "Cond expression type error:\n"
-                   <> "Conditions: " <> (show exps)
-                   <> "\nBlocks: " <> (show blocks)
-                   <> "\nOtherwise block: " <> (show otherwiseBlock)
-      expsOk <- mapM (\e -> checkExp env e TBoolean) exps
-      blocksOk <- mapM (\b -> checkBlock env b typ) (otherwiseBlock : blocks)
-      let ok = (and expsOk) && (and blocksOk)
-      if ok
-      then return True
-      else error errorMsg
+      let (conds, blocks) = unzip condBlocks
+      condTypes <- mapM (checkExp env) conds
+      let condsOk = and $ map (== TBoolean) condTypes
+      when (not condsOk) $
+        lift $ logErr $ "Invalid condition(s) in cond expression: Condition types were " <> (show condTypes)
+      blockTypes <- mapM (checkBlock env) (otherwiseBlock : blocks)
+      let blocksOk = and $ map (== (head blockTypes)) blockTypes
+      when (not blocksOk) $
+        lift $ logErr $ "Invalid block(s) in cond expression: Blocks types were " <> (show condTypes)
+      if condsOk && blocksOk
+      then return (head blockTypes)
+      else mzero
 
-    -- TODO: Adjust for new typed lambdas
-    -- LambdaExp names block -> do
-    --   let (TFunction pTypes bType) = typ
-    --   let errorMsg = "Lambda expression type error:\n"
-    --                <> "Params: " <> (show names)
-    --                <> "\nBlock: " <> (show block)
-    --                <> "\nType: " <> (show typ)
-    --   let paramCheck = (length names) == (length pTypes)
-    --   let lambdaEnv = M.fromList(zip names pTypes) `M.union` env
-    --   blockOk <- checkBlock lambdaEnv block bType
-    --   if paramCheck && blockOk
-    --   then return True
-    --   else error errorMsg
+    LambdaExp args dtOut block -> do
+      let tOut = convertDeclType dtOut
+      let varTypes = map (\(dt, name) -> (name, convertDeclType dt)) args
+      let localEnv = M.union (M.fromList(varTypes)) env
+      tBlock <- checkBlock localEnv block
+      let blockOk = tBlock == tOut
+      when (not blockOk) $
+        lift $ logErr $
+          "Invalid lambda expression: Block declared as " <> (show tOut) <> " but was " <> (show tBlock)
+      if blockOk
+      then return $ TFunction ((snd . unzip) varTypes) tOut
+      else mzero
 
     -- TODO
     -- ApplicationExp name params -> do
@@ -186,170 +214,213 @@ checkExp env exp typ =
     --          then return True
     --          else error generalMsg
 
+-- checkIntegerExp ::Environment -> Exp -> Writer [LogMsg] Bool
+-- checkIntegerExp env exp = do
+--   typ <- checkExp env exp
+--   return $ typ == TInteger
 
--- VECTOR
-checkVector :: Monad m => Environment -> Exp -> Exp -> m Bool
-checkVector env e1 e2 = do
-  t1ok <- checkExp env e1 TInteger
-  t2ok <- checkExp env e2 TInteger
-  if t1ok && t2ok
-  then return True
-  else error ("Invalid vector expression. ")
+-- checkColl :: Environment  -> [Exp] -> Type -> MWBool
+-- checkColl env exps typ = do
+--   oks <- mapM go exps
+--   return $ and oks
+--     where go exp = checkExp env exp
 
--- LIST & SET
-checkColl :: Monad m => Environment -> [Exp] -> Type -> m Bool
-checkColl env exps typ = do
-  oks <- mapM go exps
-  let correct = and oks
-  return $ (null exps) || correct
-    where go exp = checkExp env exp typ
-
--- UNARY OPS
-checkVecUnaryOp :: Monad m => Environment -> UnaryOp -> Exp -> m Bool
-checkVecUnaryOp env op exp = do
+--UNARY OPS
+checkVecUnaryOp :: UnaryOp -> Type -> Maybe Type
+checkVecUnaryOp op inputType = do
   let opOk = op `elem` [Vecx, Vecy]
-  expOk <- checkExp env exp TVector
-  return $ opOk && expOk
+  let typOk = inputType == TVector
+  if opOk && typOk
+  then return TInteger
+  else mzero
 
-checkBoolUnaryOp :: Monad m => Environment -> UnaryOp -> Exp -> m Bool
-checkBoolUnaryOp env op exp = do
+checkBoolUnaryOp :: UnaryOp -> Type -> Maybe Type
+checkBoolUnaryOp op inputType = do
   let opOk = op `elem` [Not]
-  expOk <- checkExp env exp TBoolean
-  return $ opOk && expOk
+  let typOk = inputType == TBoolean
+  if opOk && typOk
+  then return TBoolean
+  else mzero
 
-checkListUnaryOp :: Monad m => Environment -> UnaryOp -> Exp -> Type -> m Bool
-checkListUnaryOp env op exp typ = do
-  let opOk = op `elem` [Head, Tail]
-  expOk <- checkExp env exp typ
-  return $ opOk && expOk
+checkListUnaryHeadOp :: UnaryOp -> Type -> Maybe Type
+checkListUnaryHeadOp op inputType = do
+  let opOk = op == Head
+  let typ = case inputType of
+              TList t -> Just t
+              otherwise -> Nothing
+  if opOk then typ else mzero
 
--- BINARY OPS
-checkIntBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> m Bool
-checkIntBinaryOp env op e1 e2 = do
-  let opOk = op `elem` [Plus, Minus, Times, Div]
-  e1ok <- checkExp env e1 TInteger
-  e2ok <- checkExp env e2 TInteger
-  return $ and [opOk, e1ok, e2ok]
+checkListUnaryTailOp :: UnaryOp -> Type -> Maybe Type
+checkListUnaryTailOp op inputType = do
+  let opOk = op == Tail
+  let mbType = case inputType of
+              lst@(TList t) -> Just lst
+              otherwise -> Nothing
+  if opOk then mbType else mzero
 
-checkVecBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> m Bool
-checkVecBinaryOp env op e1 e2 = do
-  let opOk = op `elem` [Plus, Minus, Times, Div]
-  e1ok <- checkExp env e1 TVector
-  e2ok <- checkExp env e2 TVector
-  return $ and [opOk, e1ok, e2ok]
+checkIntBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkIntBinaryOp t1 op t2 = do
+  let opOk = op `elem` [Plus, Minus, Div, Times]
+  let typesOk = (t1 == TInteger) && (t2 == TInteger)
+  if opOk && typesOk
+  then return TInteger
+  else mzero
 
-checkIntVecBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> m Bool
-checkIntVecBinaryOp env op e1 e2 = do
+checkVecBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkVecBinaryOp t1 op t2 = do
+  let opOk = op `elem` [Plus, Minus, Div, Times]
+  let typesOk = (t1 == TVector) && (t2 == TVector)
+  if opOk && typesOk
+  then return TVector
+  else mzero
+
+checkIntVecBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkIntVecBinaryOp t1 op t2 = do
   let opOk = op `elem` [Times]
-  e1ok <- checkExp env e1 TInteger
-  e2ok <- checkExp env e2 TVector
-  return $ and [opOk, e1ok, e2ok]
+  let typesOk = (t1 == TInteger) && (t2 == TVector)
+  if opOk && typesOk
+  then return TVector
+  else mzero
 
-checkBoolBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> m Bool
-checkBoolBinaryOp env op e1 e2 = do
+checkBoolBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkBoolBinaryOp t1 op t2 = do
   let opOk = op `elem` [And, Or]
-  e1ok <- checkExp env e1 TBoolean
-  e2ok <- checkExp env e2 TBoolean
-  return $ and [opOk, e1ok, e2ok]
+  let typesOk = (t1 == TBoolean) && (t2 == TBoolean)
+  if opOk && typesOk
+  then return TBoolean
+  else mzero
 
-checkCompareBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> m Bool
-checkCompareBinaryOp env op e1 e2 = do
-  let opOk = op `elem` [Gt, Lt, Gte, Lte, Equal, NotEqual]
-  e1ok <- checkExp env e1 TInteger
-  e2ok <- checkExp env e2 TInteger
-  return $ and [opOk, e1ok, e2ok]
+checkBoolCompareBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkBoolCompareBinaryOp t1 op t2 = do
+  let opOk = op `elem` [Lt, Gt, Lte, Gte, Equal, NotEqual]
+  let typesOk = (t1 == TInteger) && (t2 == TInteger)
+  if opOk && typesOk
+  then return TBoolean
+  else mzero
 
-checkListBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> Type -> m Bool
-checkListBinaryOp env op e1 e2 typ = do
+checkListBinaryConsOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkListBinaryConsOp t1 op t2 = do
+  let opOk = op == Cons
+  let isList = case t2 of
+                  TList _ -> True
+                  otherwise -> False
+  let (TList t) = t2
+  if opOk && isList && (t1 == t)
+  then return t2
+  else mzero
+
+checkListBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkListBinaryOp t1 op t2 = do
   let opOk = op `elem` [Append]
-  e1ok <- checkExp env e1 typ
-  e2ok <- checkExp env e2 typ
-  return $ and [opOk, e1ok, e2ok]
+  let isList x = case x of
+                  TList _ -> True
+                  otherwise -> False
+  if opOk && (isList t1) && (isList t2) && (t1 == t2)
+  then return t1
+  else mzero
 
-checkConsBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> Type -> m Bool
-checkConsBinaryOp env op e1 e2 typ = do
-  let opOk = op `elem` [Cons]
-  let (TList t) = typ
-  e1ok <- checkExp env e1 t
-  e2ok <- checkExp env e2 typ
-  if (and [opOk, e1ok, e2ok])
-  then return True
-  else error $ "Cons operation for '" <> (show e1) <> "' and '" <> (show e2) <>"' invalid."
-
-checkSetBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> Type -> m Bool
-checkSetBinaryOp env op e1 e2 typ = do
-  let opOk = op `elem` [Union, Intersection]
-  e1ok <- checkExp env e1 typ
-  e2ok <- checkExp env e2 typ
-  return $ and [opOk, e1ok, e2ok]
-
-checkSetVecBinaryOp :: Monad m => Environment -> BinaryOp -> Exp -> Exp -> m Bool
-checkSetVecBinaryOp env op e1 e2 = do
+checkSetVecBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkSetVecBinaryOp t1 op t2 = do
   let opOk = op `elem` [Shift, Crop]
-  e1ok <- checkExp env e1 $ TSet TVector
-  e2ok <- checkExp env e2 TVector
-  return $ and [opOk, e1ok, e2ok]
+  let typesOk = (t1 == TSet TVector) && (t2 == TVector)
+  if opOk && typesOk
+  then return t1
+  else mzero
+
+checkSetBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
+checkSetBinaryOp t1 op t2 = do
+  let opOk = op `elem` [Union, Intersection]
+  let isSet x = case x of
+                  TList _ -> True
+                  otherwise -> False
+  if opOk && (isSet t1) && (isSet t2) && (t1 == t2)
+  then return t1
+  else mzero
+
 
 -- BLOCK
-checkBlock :: Monad m => Environment -> Block -> Type -> m Bool
-checkBlock env (Block decs body) typ = do
+checkBlock :: Environment -> Block -> MWType
+checkBlock env (Block decs body) = do
   let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
-  decsOk <- checkDeclarations env decs
+  lift $ checkDeclarations env decs
   let localEnv = M.union (M.fromList(varTypes)) env
-  checkExp localEnv body typ
+  checkExp localEnv body
 
-checkDeclaration :: Monad m => Environment -> Declaration -> m Bool
+checkDeclaration :: Environment -> Declaration -> WBool
 checkDeclaration env (Decl dt name exp) = do
-  checkExp env' exp typ
-    where typ = convertDeclType dt
-          env' = case typ of
-                TFunction _ _ -> M.insert name typ env
-                otherwise -> env
+  let expType = convertDeclType dt
+  let env' = case expType of
+               TFunction _ _ -> M.insert name expType env
+               otherwise -> env
+  realType <- runMaybeT $ checkExp env' exp
+  case realType of
+    (Just t) -> do
+      let typeOk = expType == t
+      when (not typeOk) $
+        logErr $ "Invalid declaration: Expected " <> (show expType) <> " but got " <> (show t)
+      return typeOk
+    Nothing -> return False
 
-checkDeclarations :: Monad m => Environment -> [Declaration] -> m Bool
-checkDeclarations env decs
-  | Just _ <- results = return True
-  | Nothing <- results = return False
+checkDeclarations :: Environment -> [Declaration] -> Writer [LogMsg] ()
+checkDeclarations env decs = foldM_ folder ([],env) decs
   where
-    results = foldl folder (Just env) decs
-    folder Nothing _ = Nothing
-    folder (Just env') dec@(Decl dt name _) = do
+    folder :: ([Bool], Environment) -> Declaration -> Writer [LogMsg] ([Bool], Environment)
+    folder (res, env') dec@(Decl dt name _) = do
       let t = convertDeclType dt
       decOk <- checkDeclaration env' dec
-      if decOk
-      then Just (M.insert name t env')
-      else Nothing
+      let env'' = if decOk
+                  then M.insert name t env'
+                  else env'
+      return (res ++ [decOk], env'')
 
--- TODO
--- checkProgram :: Monad m => Environment -> Program -> m Bool
--- checkProgram env (Program decs grid rpath) = do
---   let errorMsg = "Program (root) type error:"
---                  <> "\nDeclarations: " <> (show decs)
---                  <> "\nGrid: " <> (show grid)
---                  <> "\nRobot Path: " <> (show rpath)
+
+-- -- BLOCK
+-- checkBlock :: Monad m => Environment -> Block -> Type -> m Bool
+-- checkBlock env (Block decs body) typ = do
 --   let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
 --   decsOk <- checkDeclarations env decs
 --   let localEnv = M.union (M.fromList(varTypes)) env
---   gridOk <- checkGrid localEnv grid
---   rpathOk <- checkRobotRoute localEnv rpath
---   let ok = decsOk && gridOk && rpathOk
---   if ok
+--   checkExp localEnv body typ
+
+-- checkDeclaration :: Monad m => Environment -> Declaration -> m Bool
+-- checkDeclaration env (Decl dt name exp) = do
+--   checkExp env' exp typ
+--     where typ = convertDeclType dt
+--           env' = case typ of
+--                 TFunction _ _ -> M.insert name typ env
+--                 otherwise -> env
+
+
+-- -- TODO
+-- -- checkProgram :: Monad m => Environment -> Program -> m Bool
+-- -- checkProgram env (Program decs grid rpath) = do
+-- --   let errorMsg = "Program (root) type error:"
+-- --                  <> "\nDeclarations: " <> (show decs)
+-- --                  <> "\nGrid: " <> (show grid)
+-- --                  <> "\nRobot Path: " <> (show rpath)
+-- --   let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
+-- --   decsOk <- checkDeclarations env decs
+-- --   let localEnv = M.union (M.fromList(varTypes)) env
+-- --   gridOk <- checkGrid localEnv grid
+-- --   rpathOk <- checkRobotRoute localEnv rpath
+-- --   let ok = decsOk && gridOk && rpathOk
+-- --   if ok
+-- --   then return True
+-- --   else error errorMsg
+
+
+-- checkGrid :: Monad m => Environment -> GridDef -> m Bool
+-- checkGrid env (GridDef bounds points) = do
+--   boundsOk <- checkExp env bounds TVector
+--   pointsOk <- checkExp env points (TSet TVector)
+--   let errorMsg = "Grid definition type error:"
+--                  <> "\nBounds: " <> (show bounds)
+--                  <> "\nPoints: " <> (show points)
+--   if (boundsOk && pointsOk)
 --   then return True
 --   else error errorMsg
 
-
-checkGrid :: Monad m => Environment -> GridDef -> m Bool
-checkGrid env (GridDef bounds points) = do
-  boundsOk <- checkExp env bounds TVector
-  pointsOk <- checkExp env points (TSet TVector)
-  let errorMsg = "Grid definition type error:"
-                 <> "\nBounds: " <> (show bounds)
-                 <> "\nPoints: " <> (show points)
-  if (boundsOk && pointsOk)
-  then return True
-  else error errorMsg
-
--- TODO
+-- -- TODO
 -- checkRobotRoute :: Monad m => Environment -> RobotRoute -> m Bool
 -- checkRobotRoute env (RobotRoute start end) = do
 --   pathOk <- checkExp env path (TList TVector)
@@ -362,6 +433,28 @@ checkGrid env (GridDef bounds points) = do
 
 
 -- HELPERS
+handleUnaryResults :: [Type] -> UnaryOp -> Type -> MWType
+handleUnaryResults xs op t
+  | ((length xs) == 1) = return (head xs)
+  | ((length xs) > 1) = do
+      lift $ logErr $ "Ambiguous unary expression (Operation " <> (show op) <> "). Possible types: " <> (show xs)
+      mzero
+  | (null xs) = do
+      lift $ logErr $ "Invalid unary expression (Operation " <> (show op) <> " applied to " <> (show t) <> ")."
+      mzero
+
+handleBinaryResults :: [Type] -> BinaryOp -> Type -> Type -> MWType
+handleBinaryResults xs op t1 t2
+  | ((length xs) == 1) = return (head xs)
+  | ((length xs) > 1) = do
+      lift $ logErr $ "Ambiguous binary expression (Operation " <> (show op) <> "). Possible types: " <> (show xs)
+      mzero
+  | (null xs) = do
+      lift $ logErr $
+        "Invalid binary expression (Operation " <> (show op) <>
+        " applied to " <> (show t1) <> " and " <> (show t2) <> ")."
+      mzero
+
 convertDeclType :: DeclType -> Type
 convertDeclType dt = case dt of
   TypeInt -> TInteger
