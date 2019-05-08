@@ -5,6 +5,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+--import Data.Sequence (Seq)
+--import qualified Data.Sequence as Seq
 
 
 data Value = TInt Int
@@ -27,6 +29,7 @@ parsedCurry = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> 
 -- look for res = 420
 funcAsParam = Parser.parseAros ""  "((int -> int), int -> int) myfunc = ((int -> int) f, int x) -> int { f(x) } ; (int -> int) double = (int x) -> int { 2 * x } ; int res = myfunc(double, 210) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
 parsedRecCurried = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> int { if (b <= 1) { 1 } else { b + myfunc ( a, b - a ) } } ; (int->int) curried = myfunc(1) ; int res = curried ( 100 ) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+onlyGrid = Parser.parseAros "" "grid <3,3>, { <1,1>, <2,1> } routeRobot <0,0>, <2,2>"
 
 evalTree :: Either String Program -> String
 evalTree (Right (Program decls grid wpts)) =
@@ -41,7 +44,11 @@ evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
   case (expHandler ident defs expr) of
     Right computedDecl -> evaluateProgram (Map.insert ident computedDecl defs) xs grd wpts
     Left e -> Left e
-evaluateProgram defs [] grd wpts = handleRobot (handleGrid grd defs) wpts defs
+evaluateProgram defs [] grd wpts = do
+  let (RobotRoute e1 e2) = wpts
+  let (Right start) = expHandler "" defs e1
+  let (Right end) = expHandler "" defs e2
+  handleRobot (handleGrid grd defs) start end
 
 
 
@@ -170,8 +177,70 @@ unaryExpressionHandler Vecx (TVec (a,_)) = Right $ TInt a
 unaryExpressionHandler Vecy (TVec (_,b)) = Right $ TInt b
 unaryExpressionHandler _ _ = Left "NoUop err"
 
--- TODO
-handleRobot :: Either String Value -> RobotRoute -> Map String Value -> Either String String
---handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show defs) ++ "  ------  " ++ (show $ Set.toList playmap) ++ " sized " ++ (show playsize)
-handleRobot (Right (TGridSet playmap playsize)) wpts defs = Right $ (show $ Map.toList defs)
+
+
+
+
+
+
+
+
+
+cartesianProd :: [a] -> [b] -> [(a,b)]
+cartesianProd xs ys = [ (a,b) | a <- xs, b <- ys ]
+
+handleRobot :: Either String Value -> Value -> Value -> Either String String
+handleRobot (Right (TGridSet playmap playsize)) (TVec start) (TVec end) = do
+  let (TVec (x,y)) = playsize
+  let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
+  let obstacles = map (\(TVec vc) -> vc) $ Set.toList playmap
+  let freeSquares = filter ( `notElem` obstacles ) allVecs
+  let allEdges = filter ( \((x1,y1),(x2,y2)) -> (abs (x1 - x2) + abs (y1 - y2)) == 1 ) $ cartesianProd freeSquares freeSquares
+  Right $ show $ betterPathRobot allEdges Set.empty end start
 handleRobot _ _ _ = Left "Robot err"
+
+
+--pathRobot :: (Show a, Ord a) => [((a,a),(a,a))] -> Seq (a,a) -> Set (a,a) -> (a,a) -> Either String [(a,a)]
+--pathRobot graph fifo visited end
+--  | Seq.length fifo == 0 = Left "No path"
+--  | otherwise = do
+--    let head = fifo `Seq.index` 0
+--    let restOfFifo = Seq.deleteAt 0 fifo
+--    if head == end then
+--      Right $ [head]
+--      else if (head `Set.member` visited) then
+--      pathRobot graph restOfFifo visited end
+--      else do
+--        let updatedVisited = Set.insert head visited
+--        let toAddToFifo = map (\(_,y) -> y) $ filter (\(x,_) -> head == x ) graph
+--        let updatedfifo = restOfFifo Seq.>< (Seq.fromList toAddToFifo)
+--        result <- pathRobot graph updatedfifo updatedVisited end
+--        return $ head : result
+
+
+betterPathRobot :: (Show a, Ord a) => [((a,a),(a,a))] -> Set (a,a) -> (a,a) -> (a,a) -> [(a,a)]
+betterPathRobot graph visited end cur
+  | cur `Set.member` visited = []
+  | cur == end = [cur]
+  | length neighbors == 0 = []
+  | otherwise =
+    case
+      foldr1 shortestList $
+      map (betterPathRobot graph (Set.insert cur visited) end) $
+      neighbors
+    of
+      [] -> []
+      res -> cur : res
+  where
+    shortestList :: [a] -> [a] -> [a]
+    shortestList [] [] = []
+    shortestList a b
+      | length a > length b = a
+      | otherwise = b
+    neighbors = map (\(_,y) -> y) $ filter (\(x,_) -> x == cur) graph
+
+
+
+et :: String
+et = evalTree onlyGrid
+
