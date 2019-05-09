@@ -1,5 +1,5 @@
 int myint = 5 + 3 * 2;
 vec thevec = <myint,2>;
 {vec} place = {thevec} >> <3,3>;
-grid <2,4>, {<1,1>}
+grid <4,4>, place
 routeRobot <1,1>, <2,2>
