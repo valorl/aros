@@ -29,11 +29,10 @@ parsedCurry = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> 
 -- look for res = 420
 funcAsParam = Parser.parseAros ""  "((int -> int), int -> int) myfunc = ((int -> int) f, int x) -> int { f(x) } ; (int -> int) double = (int x) -> int { 2 * x } ; int res = myfunc(double, 210) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
 parsedRecCurried = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> int { if (b <= 1) { 1 } else { b + myfunc ( a, b - a ) } } ; (int->int) curried = myfunc(1) ; int res = curried ( 100 ) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
-onlyGrid = Parser.parseAros "" "grid <50,50>, { <1,1>, <2,1> } routeRobot <0,0>, <49,49>"
+onlyGrid = Parser.parseAros "" "grid <10,10>, { <1,1>, <2,1> } routeRobot <0,0>, <9,9>"
 
 et :: IO ()
-et = do
-  putStr $ evalTree onlyGrid ++ "\n"
+et = putStr $ evalTree onlyGrid ++ "\n"
 
 evalTree :: Either String Program -> String
 evalTree (Right (Program decls grid wpts)) =
@@ -196,6 +195,19 @@ followParents paths node
 cartesianProd :: [a] -> [b] -> [(a,b)]
 cartesianProd xs ys = [ (a,b) | a <- xs, b <- ys ]
 
+directionToGoMaker :: (Ord a) => (a,a) -> (a,a) -> String
+directionToGoMaker (x1,y1) (x2,y2)
+  | x1 > x2 = "Up"
+  | x1 < x2 = "Down"
+  | y1 > y2 = "Left"
+  | otherwise = "Right"
+
+instructionsMaker :: (Ord a) => [(a,a)] -> String
+instructionsMaker (x:y:xs) = directionToGoMaker x y ++ " " ++ instructionsMaker (y:xs)
+instructionsMaker [_] = "Done."
+instructionsMaker _ = "Empty."
+
+
 handleRobot :: Either String Value -> Value -> Value -> Either String String
 handleRobot (Right (TGridSet playmap playsize)) (TVec start) (TVec end) = do
   let (TVec (x,y)) = playsize
@@ -204,7 +216,7 @@ handleRobot (Right (TGridSet playmap playsize)) (TVec start) (TVec end) = do
   let freeSquares = filter ( `notElem` obstacles ) allVecs
   let allEdges = filter ( \((x1,y1),(x2,y2)) -> (abs (x1 - x2) + abs (y1 - y2)) == 1 ) $ cartesianProd freeSquares freeSquares
   case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
-    (Right res) -> Right $ show $ reverse $ followParents res end
+    (Right res) -> Right $ instructionsMaker $ reverse $ followParents res end
     (Left err) -> Left err
 handleRobot _ _ _ = Left "Robot err"
 
