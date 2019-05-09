@@ -19,25 +19,16 @@ data Value = TInt Int
            deriving (Show, Eq, Ord)
 
 
-parsedvars = Parser.parseAros "" "int myint = 5 + 3 * 2 ; vec thevec = <myint,2> ; {vec} place = {thevec} >> <3,3> ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
--- random calcs
-parsedSimpleFunc = Parser.parseAros "" "( int -> int) myfunc = (int a)  -> int { 2 * a } ; int res = myfunc (10) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
--- look for res = 20
-parsedRec = Parser.parseAros "" "(int -> int) myfunc = (int a) -> int { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } } ; int res = myfunc (100) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
--- look for res = 5050 == foldr1 (+) [1..100]
-parsedCurry = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> (int -> int) { a*b } ; (int -> int) mycurriedfunc = myfunc (2) ; int res = mycurriedfunc (210) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
--- look for res = 420
-funcAsParam = Parser.parseAros ""  "((int -> int), int -> int) myfunc = ((int -> int) f, int x) -> int { f(x) } ; (int -> int) double = (int x) -> int { 2 * x } ; int res = myfunc(double, 210) ; grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
-parsedRecCurried = Parser.parseAros "" "(int, int -> int) myfunc = (int a, int b) -> int { if (b <= 1) { 1 } else { b + myfunc ( a, b - a ) } } ; (int->int) curried = myfunc(1) ; int res = curried ( 100 ) ;  grid < 2 , 4 > , { <1,1> } routeRobot <1,1> , <2,2> "
+onlyGrid :: Either String Program
 onlyGrid = Parser.parseAros "" "grid <10,10>, { <1,1>, <2,1> } routeRobot <0,0>, <9,9>"
 
 et :: IO ()
-et = putStr $ evalTree onlyGrid ++ "\n"
+et = putStr $ evalTree onlyGrid
 
 evalTree :: Either String Program -> String
 evalTree (Right (Program decls grid wpts)) =
   case evaluateProgram Map.empty decls grid wpts of
-    (Right x) -> show x
+    (Right x) -> x
     (Left err) -> err
 evalTree (Left _) = "Program wasn't parsed correctly"
 
@@ -49,9 +40,15 @@ evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
     Left e -> Left e
 evaluateProgram defs [] grd wpts = do
   let (RobotRoute e1 e2) = wpts
-  let (Right start) = expHandler "" defs e1
-  let (Right end) = expHandler "" defs e2
-  handleRobot (handleGrid grd defs) start end
+  let (Right start@(TVec tstart)) = expHandler "" defs e1
+  let (Right end@(TVec tend)) = expHandler "" defs e2
+  let (Right (TGridSet playmap playsize@(TVec tplaysize))) = handleGrid grd defs
+  resultPath <- handleRobot playmap playsize start end
+  return $
+    "playsize " ++ show tplaysize ++ "\n" ++
+    "playmap " ++ (show $ map (\(TVec x) -> x) $ Set.toList playmap) ++ "\n" ++
+    "start->end " ++ show tstart ++ "->" ++ show tend ++ "\n" ++
+    resultPath ++ "\n"
 
 
 
@@ -208,8 +205,8 @@ instructionsMaker [_] = "Done."
 instructionsMaker _ = "Empty."
 
 
-handleRobot :: Either String Value -> Value -> Value -> Either String String
-handleRobot (Right (TGridSet playmap playsize)) (TVec start) (TVec end) = do
+handleRobot :: (Set Value) -> Value -> Value -> Value -> Either String String
+handleRobot playmap playsize (TVec start) (TVec end) = do
   let (TVec (x,y)) = playsize
   let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
   let obstacles = map (\(TVec vc) -> vc) $ Set.toList playmap
@@ -218,7 +215,7 @@ handleRobot (Right (TGridSet playmap playsize)) (TVec start) (TVec end) = do
   case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
     (Right res) -> Right $ instructionsMaker $ reverse $ followParents res end
     (Left err) -> Left err
-handleRobot _ _ _ = Left "Robot err"
+handleRobot _ _ _ _ = Left "Robot err"
 
 pathRobot :: (Show a, Ord a) => [((a,a),(a,a))] -> Seq ((a,a),(a,a)) -> Set (a,a) -> (a,a) -> Either String [((a,a),(a,a))]
 pathRobot graph fifo visited end
@@ -236,39 +233,4 @@ pathRobot graph fifo visited end
         let updatedfifo = restOfFifo Seq.>< (Seq.fromList $ map (\x -> (chead,x)) toAddToFifo)
         result <- pathRobot graph updatedfifo updatedVisited end
         return $ h : result
-
-
---handleRobot2 :: Either String Value -> Value -> Value -> Either String String
---handleRobot2 (Right (TGridSet playmap playsize)) (TVec start) (TVec end) = do
---  let (TVec (x,y)) = playsize
---  let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
---  let obstacles = map (\(TVec vc) -> vc) $ Set.toList playmap
---  let freeSquares = filter ( `notElem` obstacles ) allVecs
---  let allEdges = filter ( \((x1,y1),(x2,y2)) -> (abs (x1 - x2) + abs (y1 - y2)) == 1 ) $ cartesianProd freeSquares freeSquares
---  Right $ show $ worsePathRobot allEdges Set.empty end start
---handleRobot2 _ _ _ = Left "Robot err"
---
---
---worsePathRobot :: (Show a, Ord a) => [((a,a),(a,a))] -> Set (a,a) -> (a,a) -> (a,a) -> [(a,a)]
---worsePathRobot graph visited end cur
---  | cur `Set.member` visited = []
---  | cur == end = [cur]
---  | length neighbors == 0 = []
---  | otherwise =
---    case
---      foldr1 shortestList $
---      map (worsePathRobot graph (Set.insert cur visited) end) $
---      neighbors
---    of
---      [] -> []
---      res -> cur : res
---  where
---    shortestList :: [a] -> [a] -> [a]
---    shortestList [] [] = []
---    shortestList a b
---      | length a > length b = a
---      | otherwise = b
---    neighbors = map (\(_,y) -> y) $ filter (\(x,_) -> x == cur) graph
-
-
 
