@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 
 module Checker where
@@ -58,11 +57,13 @@ type MWType = MaybeT (Writer [LogMsg]) Type
 type MWBool = MaybeT (Writer [LogMsg]) Bool
 type WBool = Writer [LogMsg] Bool
 
-runChecker :: Exp -> IO ()
-runChecker exp = do
-  let (result, log) = runWriter $ runMaybeT $ checkExp mempty exp
-  pPrint result
-  print log
+runChecker :: Program -> (Bool, [LogMsg])
+runChecker prg =
+  case result of
+    Just r -> (r, log)
+    Nothing -> (False, log)
+  where (result, log) = runWriter $ runMaybeT $ checkProgram mempty prg
+
 
 
 
@@ -178,52 +179,60 @@ checkExp env exp = case exp of
       then return $ TFunction ((snd . unzip) varTypes) tOut
       else mzero
 
-    -- TODO
-    -- ApplicationExp name params -> do
-    --   let mbType = M.lookup name env
-    --   let (Just fnType) = mbType
-    --   let isFnType = case fnType of
-    --                    TFunction _ _ -> True
-    --                    otherwise -> False
-    --   let (TFunction pTypes bType) = fnType
-    --   let paramsMatch = (length pTypes) == (length params)
+    ApplicationExp fn params -> do
+      tFn <- checkExp env fn
+      let isFunc = case tFn of
+                     TFunction _ _ -> True
+                     otherwise -> False
+      when (not isFunc) $
+        lift $ logErr $ "Invalid application expression: Expected a function but got " <> (show tFn)
+      let (TFunction tFnParams tOut) = tFn
+      tParams <- mapM (checkExp env) params
+      let paramsOk = tParams == tFnParams
+      when (not paramsOk) $
+        lift $ logErr $
+          "Invalid application expression: Provided parameters (" <> (show tParams)
+          <> ") do not match the function" <> (show tFn)
+      if isFunc && paramsOk
+      then return tOut
+      else mzero
 
-    --   let msgNotFound = "Function application error: Variable not found: '" <> (show name) <> "'"
-    --   let msgNotFunction = "Expected variable '" <> (show name)
-    --                        <> "' to be a function, but was '" <> (show fnType) <> "'."
-    --   let msgParamsMismatch = "Expected function '" <> (show name)
-    --                             <> "' to be applied to " <> (show $ length pTypes)
-    --                             <> "' but was '" <> (show $ length params) <> " instead."
-    --   let generalMsg = "Function application type error:"
-    --                     <> "\nName:" <> (show name)
-    --                     <> "\nParams: " <> (show params)
-    --                     <> "\nFunction type: " <> (show fnType)
-    --                     <> "\nExpected type: " <> (show typ)
+checkProgram :: Environment -> Program -> MWBool
+checkProgram env (Program decs grid route) = do
+  let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
+  lift $ checkDeclarations env decs
+  let localEnv = M.union (M.fromList(varTypes)) env
+  gridOk <- checkGrid localEnv grid
+  routeOk <- checkRoute localEnv route
+  return $ gridOk && routeOk
 
-    --   if isNothing mbType
-    --   then error msgNotFound
-    --   else if not isFnType
-    --        then error msgNotFunction
-    --        else if not paramsMatch
-    --        then error msgParamsMismatch
-    --        else do
-    --          let outputOk = bType == typ
-    --          let typedParams = zip params pTypes
-    --          paramsOk <- mapM (\(p, t) -> checkExp env p t) typedParams
-    --          if outputOk && (and paramsOk)
-    --          then return True
-    --          else error generalMsg
+checkGrid :: Environment -> GridDef -> MWBool
+checkGrid env (GridDef bounds points) = do
+  tBounds <- checkExp env bounds
+  tPoints <- checkExp env points
+  let boundsOk = tBounds == TVector
+  when (not boundsOk) $
+    lift $ logErr $ "Invalid grid definition: Expected bounds parameter to be a vector but was " <> (show tBounds)
+  let pointsOk = tPoints == TSet TVector
+  when (not pointsOk) $
+    lift $ logErr $ "Invalid grid definition: Expected points parameter to be a vector set but was " <> (show tPoints)
+  return $ boundsOk && pointsOk
 
--- checkIntegerExp ::Environment -> Exp -> Writer [LogMsg] Bool
--- checkIntegerExp env exp = do
---   typ <- checkExp env exp
---   return $ typ == TInteger
 
--- checkColl :: Environment  -> [Exp] -> Type -> MWBool
--- checkColl env exps typ = do
---   oks <- mapM go exps
---   return $ and oks
---     where go exp = checkExp env exp
+checkRoute :: Environment -> RobotRoute -> MWBool
+checkRoute env (RobotRoute start end) = do
+  tStart <- checkExp env start
+  tEnd <- checkExp env end
+  let startOk = tStart == TVector
+  when (not startOk) $
+    lift $ logErr $ "Invalid grid definition: Expected start parameter to be a vector but was " <> (show tStart)
+  let endOk = tEnd == TVector
+  when (not endOk) $
+    lift $ logErr $ "Invalid grid definition: Expected end parameter to be a vector but was " <> (show tEnd)
+  return $ startOk && endOk
+
+
+
 
 --UNARY OPS
 checkVecUnaryOp :: UnaryOp -> Type -> Maybe Type
@@ -331,7 +340,7 @@ checkSetBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
 checkSetBinaryOp t1 op t2 = do
   let opOk = op `elem` [Union, Intersection]
   let isSet x = case x of
-                  TList _ -> True
+                  TSet _ -> True
                   otherwise -> False
   if opOk && (isSet t1) && (isSet t2) && (t1 == t2)
   then return t1
@@ -372,23 +381,6 @@ checkDeclarations env decs = foldM_ folder ([],env) decs
                   then M.insert name t env'
                   else env'
       return (res ++ [decOk], env'')
-
-
--- -- BLOCK
--- checkBlock :: Monad m => Environment -> Block -> Type -> m Bool
--- checkBlock env (Block decs body) typ = do
---   let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
---   decsOk <- checkDeclarations env decs
---   let localEnv = M.union (M.fromList(varTypes)) env
---   checkExp localEnv body typ
-
--- checkDeclaration :: Monad m => Environment -> Declaration -> m Bool
--- checkDeclaration env (Decl dt name exp) = do
---   checkExp env' exp typ
---     where typ = convertDeclType dt
---           env' = case typ of
---                 TFunction _ _ -> M.insert name typ env
---                 otherwise -> env
 
 
 -- -- TODO
