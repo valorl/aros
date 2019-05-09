@@ -1,0 +1,5 @@
+(int, int -> int) myfunc = (int a, int b) -> (int -> int) { a*b };
+(int -> int) mycurriedfunc = myfunc (2);
+int res = mycurriedfunc (210);
+grid <2,4>, {<1,1>}
+routeRobot <1,1>, <2,2>

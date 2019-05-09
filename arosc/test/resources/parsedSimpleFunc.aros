@@ -1,0 +1,4 @@
+( int -> int ) myfunc = (int a) -> int { 2 * a };
+int res = myfunc (10);
+grid <2,4>, {<1,1>}
+routeRobot <1,1>, <2,2>
