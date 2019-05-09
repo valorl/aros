@@ -25,6 +25,7 @@ onlyGrid = Parser.parseAros "" "grid <10,10>, { <1,1>, <2,1> } routeRobot <0,0>,
 et :: IO ()
 et = putStr $ evalTree onlyGrid
 
+-- start point, checks that program was evaluated ok
 evalTree :: Either String Program -> String
 evalTree (Right (Program decls grid wpts)) =
   case evaluateProgram Map.empty decls grid wpts of
@@ -32,7 +33,9 @@ evalTree (Right (Program decls grid wpts)) =
     (Left err) -> err
 evalTree (Left _) = "Program wasn't parsed correctly"
 
--- Parses definitions into a map, then calls handleRobot
+-- recurses through definitions, adding them to dict
+-- then evaluates the robot route
+-- finally pretty prints the info
 evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> RobotRoute -> Either String String
 evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
   case (expHandler ident defs expr) of
@@ -45,11 +48,88 @@ evaluateProgram defs [] grd wpts = do
   let (Right (TGridSet playmap playsize@(TVec tplaysize))) = handleGrid grd defs
   resultPath <- handleRobot playmap playsize start end
   return $
-    "playsize " ++ show tplaysize ++ "\n" ++
-    "playmap " ++ (show $ map (\(TVec x) -> x) $ Set.toList playmap) ++ "\n" ++
+    "map size " ++ show tplaysize ++ "\n" ++
+    "obstacles " ++ (show $ map (\(TVec x) -> x) $ Set.toList playmap) ++ "\n" ++
     "start->end " ++ show tstart ++ "->" ++ show tend ++ "\n" ++
     resultPath ++ "\n"
 
+
+------ ROBOT STUFF -----
+
+-- list of (vec1,vec2), where vec1 is the path parent of vec2
+-- knowing the final vec we can trace the route back to the beginning
+-- starting vector has parent (-1,-1)
+followParents :: (Eq a, Num a) => [((a,a),(a,a))] -> (a,a) -> [(a,a)]
+followParents [] _ = []
+followParents paths node
+  | p == (-1,-1) = [node]
+  | otherwise = node : followParents paths p
+  where
+    (p,_) = head $ filter (\(_,h) -> h == node) paths
+
+-- self explanatory
+cartesianProd :: [a] -> [b] -> [(a,b)]
+cartesianProd xs ys = [ (a,b) | a <- xs, b <- ys ]
+
+-- gives direction from vec1 to vec2
+-- x up   -> down
+-- y left -> right
+directionToGoMaker :: (Ord a) => (a,a) -> (a,a) -> String
+directionToGoMaker (x1,y1) (x2,y2)
+  | x1 > x2 = "Up"
+  | x1 < x2 = "Down"
+  | y1 > y2 = "Left"
+  | otherwise = "Right"
+
+-- taking a list of coordinates (the path of the robot)
+-- transforms it into a list of instructions
+instructionsMaker :: (Ord a) => [(a,a)] -> String
+instructionsMaker (x:y:xs) = directionToGoMaker x y ++ " " ++ instructionsMaker (y:xs)
+instructionsMaker [_] = "Done."
+instructionsMaker _ = "Empty."
+
+-- creates a list of all vectors on the map, then removes the unavailable ones
+-- from the remaining vectors we can make edges between neighboring vectors
+-- finally computes and returns the fastest route for the robot
+handleRobot :: (Set Value) -> Value -> Value -> Value -> Either String String
+handleRobot playmap playsize (TVec start) (TVec end) = do
+  let (TVec (x,y)) = playsize
+  let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
+  let obstacles = map (\(TVec vc) -> vc) $ Set.toList playmap
+  let freeSquares = filter ( `notElem` obstacles ) allVecs
+  let allEdges = filter ( \((x1,y1),(x2,y2)) -> (abs (x1 - x2) + abs (y1 - y2)) == 1 ) $ cartesianProd freeSquares freeSquares
+  case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
+    (Right res) -> Right $ instructionsMaker $ reverse $ followParents res end
+    (Left err) -> Left err
+handleRobot _ _ _ _ = Left "Robot err"
+
+-- using a fifo queue
+-- pops the head
+-- checks that it hasn't been already visited
+-- puts the neighbors in the back of the queue with itself as parent
+-- continues until finish is found (or queue empty)
+-- path will later be found by tracing parents
+pathRobot :: (Show a, Ord a) => [((a,a),(a,a))] -> Seq ((a,a),(a,a)) -> Set (a,a) -> (a,a) -> Either String [((a,a),(a,a))]
+pathRobot graph fifo visited end
+  | Seq.length fifo == 0 = Left "No path"
+  | otherwise = do
+    let h@(_,chead) = fifo `Seq.index` 0
+    let restOfFifo = Seq.deleteAt 0 fifo
+    if chead == end then
+      Right $ [h]
+      else if (chead `Set.member` visited) then
+      pathRobot graph restOfFifo visited end
+      else do
+        let updatedVisited = Set.insert chead visited
+        let toAddToFifo = map (\(_,y) -> y) $ filter (\(x,_) -> chead == x ) graph
+        let updatedfifo = restOfFifo Seq.>< (Seq.fromList $ map (\x -> (chead,x)) toAddToFifo)
+        result <- pathRobot graph updatedfifo updatedVisited end
+        return $ h : result
+
+
+
+
+------ EVALUATING STUFF ------
 
 
 handleGrid :: GridDef -> Map String Value -> Either String Value
@@ -179,58 +259,4 @@ unaryExpressionHandler _ _ = Left "NoUop err"
 
 
 
-
-
-followParents :: (Eq a, Num a) => [((a,a),(a,a))] -> (a,a) -> [(a,a)]
-followParents [] _ = []
-followParents paths node
-  | p == (-1,-1) = [node]
-  | otherwise = node : followParents paths p
-  where
-    (p,_) = head $ filter (\(_,h) -> h == node) paths
-
-cartesianProd :: [a] -> [b] -> [(a,b)]
-cartesianProd xs ys = [ (a,b) | a <- xs, b <- ys ]
-
-directionToGoMaker :: (Ord a) => (a,a) -> (a,a) -> String
-directionToGoMaker (x1,y1) (x2,y2)
-  | x1 > x2 = "Up"
-  | x1 < x2 = "Down"
-  | y1 > y2 = "Left"
-  | otherwise = "Right"
-
-instructionsMaker :: (Ord a) => [(a,a)] -> String
-instructionsMaker (x:y:xs) = directionToGoMaker x y ++ " " ++ instructionsMaker (y:xs)
-instructionsMaker [_] = "Done."
-instructionsMaker _ = "Empty."
-
-
-handleRobot :: (Set Value) -> Value -> Value -> Value -> Either String String
-handleRobot playmap playsize (TVec start) (TVec end) = do
-  let (TVec (x,y)) = playsize
-  let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
-  let obstacles = map (\(TVec vc) -> vc) $ Set.toList playmap
-  let freeSquares = filter ( `notElem` obstacles ) allVecs
-  let allEdges = filter ( \((x1,y1),(x2,y2)) -> (abs (x1 - x2) + abs (y1 - y2)) == 1 ) $ cartesianProd freeSquares freeSquares
-  case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
-    (Right res) -> Right $ instructionsMaker $ reverse $ followParents res end
-    (Left err) -> Left err
-handleRobot _ _ _ _ = Left "Robot err"
-
-pathRobot :: (Show a, Ord a) => [((a,a),(a,a))] -> Seq ((a,a),(a,a)) -> Set (a,a) -> (a,a) -> Either String [((a,a),(a,a))]
-pathRobot graph fifo visited end
-  | Seq.length fifo == 0 = Left "No path"
-  | otherwise = do
-    let h@(_,chead) = fifo `Seq.index` 0
-    let restOfFifo = Seq.deleteAt 0 fifo
-    if chead == end then
-      Right $ [h]
-      else if (chead `Set.member` visited) then
-      pathRobot graph restOfFifo visited end
-      else do
-        let updatedVisited = Set.insert chead visited
-        let toAddToFifo = map (\(_,y) -> y) $ filter (\(x,_) -> chead == x ) graph
-        let updatedfifo = restOfFifo Seq.>< (Seq.fromList $ map (\x -> (chead,x)) toAddToFifo)
-        result <- pathRobot graph updatedfifo updatedVisited end
-        return $ h : result
 
