@@ -2,3 +2,4 @@
 arosc.cabal
 *~
 .dir-locals.el
+dist-newstyle
