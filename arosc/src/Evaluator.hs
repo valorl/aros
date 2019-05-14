@@ -181,7 +181,7 @@ expHandler defs (ApplicationExp ident params) = do
   let (VariableExp sident) = ident
   let (TLambda env paramNames block) = lambda
   let newenv = Map.insert sident lambda env
-  curryHandler sident newenv defs paramNames params block
+  curryHandler newenv defs paramNames params block
 
 
 expHandler defs (IfExp expr block1  block2) =
@@ -205,16 +205,16 @@ blockHandler defs (Block ((Decl _ ident expr):xs) finalExp) =
 blockHandler defs (Block [] finalExp) = expHandler defs finalExp
 
 
-curryHandler :: String -> Map String Value -> Map String Value -> [String] -> [Exp] -> Block -> Either String Value
-curryHandler identifier closureenv origenv (x:xs) (y:ys) block = do
+curryHandler :: Map String Value -> Map String Value -> [String] -> [Exp] -> Block -> Either String Value
+curryHandler closureenv origenv (x:xs) (y:ys) block = do
   evalled <- expHandler origenv y
   let newenv = Map.insert x evalled closureenv
-  curryHandler identifier newenv origenv xs ys block
+  curryHandler newenv origenv xs ys block
 
-curryHandler identifier closureenv _ e@(_:_) [] block =
+curryHandler closureenv _ e@(_:_) [] block =
   expHandler closureenv (LambdaExp (map (\x -> (TypeInt, x)) e) TypeInt block) --HACK!!
-curryHandler _ closureenv _ [] [] block = blockHandler closureenv block
-curryHandler _ _ _ [] (_:_) _ = Left "Too many args to function"
+curryHandler closureenv _ [] [] block = blockHandler closureenv block
+curryHandler _ _ [] (_:_) _ = Left "Too many args to function"
 
 binaryOperationHandler :: BinaryOp -> Value -> Value -> Either String Value
 binaryOperationHandler Plus  (TInt i) (TInt j) = Right $ TInt $ i+j
