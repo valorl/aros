@@ -1,4 +1,4 @@
 ( int -> int ) myfunc = (int a) -> int { 2 * a };
 int res = myfunc (10);
 grid <3,4>, {<1,res>}
-routeRobot <1,1>, <2,2>
+route <1,1>, <2,2>
