@@ -174,7 +174,7 @@ expHandler _ defs (UnaryExp uop expr) = do
   unaryExpressionHandler uop e
 
 expHandler identifier defs (LambdaExp strings _ block) = do
-  return $ TLambda (Map.insert identifier (TLambda Map.empty [] (Block [] (IntegerExp 0))) defs) (declstringpairToStringHelper strings) block
+  return $ TLambda (Map.insert identifier (TLambda Map.empty [] (Block [] (IntegerExp 0))) defs) (map (\(_,s)->s) strings) block
 
 expHandler identifier defs (ApplicationExp ident params) = do
   lambda <- expHandler "" defs ident
@@ -215,10 +215,6 @@ curryHandler identifier closureenv _ e@(_:_) [] block =
   expHandler identifier closureenv (LambdaExp (map (\x -> (TypeInt, x)) e) TypeInt block) --HACK!!
 curryHandler _ closureenv _ [] [] block = blockHandler closureenv block
 curryHandler _ _ _ [] (_:_) _ = Left "Too many args to function"
-
-declstringpairToStringHelper :: [(DeclType, String)] -> [String]
-declstringpairToStringHelper ((_,s):xs) = s : declstringpairToStringHelper xs
-declstringpairToStringHelper [] = []
 
 binaryOperationHandler :: BinaryOp -> Value -> Value -> Either String Value
 binaryOperationHandler Plus  (TInt i) (TInt j) = Right $ TInt $ i+j
