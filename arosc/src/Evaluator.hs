@@ -38,13 +38,13 @@ evalTree (Left _) = "Program wasn't parsed correctly"
 -- finally pretty prints the info
 evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> RobotRoute -> Either String String
 evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
-  case (expHandler ident defs expr) of
+  case (expHandler defs expr) of
     Right computedDecl -> evaluateProgram (Map.insert ident computedDecl defs) xs grd wpts
     Left e -> Left e
 evaluateProgram defs [] grd wpts = do
   let (RobotRoute e1 e2) = wpts
-  let (Right start@(TVec tstart)) = expHandler "" defs e1
-  let (Right end@(TVec tend)) = expHandler "" defs e2
+  let (Right start@(TVec tstart)) = expHandler defs e1
+  let (Right end@(TVec tend)) = expHandler defs e2
   let (Right (TGridSet playmap playsize@(TVec tplaysize))) = handleGrid grd defs
   resultPath <- handleRobot playmap playsize start end
   return $
@@ -134,85 +134,85 @@ pathRobot graph fifo visited end
 
 handleGrid :: GridDef -> Map String Value -> Either String Value
 handleGrid (GridDef e1 e2) defs = do
-    playsize <- expHandler "" defs e1
-    playmap <- expHandler "" defs e2
+    playsize <- expHandler defs e1
+    playmap <- expHandler defs e2
     case playmap of
       (TSet m) -> return $ TGridSet m playsize
       _ -> Left "Didn't get a Set"
 
 
-expHandler :: String -> Map String Value -> Exp -> Either String Value
-expHandler _ defs (VariableExp ident) =
+expHandler :: Map String Value -> Exp -> Either String Value
+expHandler defs (VariableExp ident) =
   case ( Map.lookup ident defs ) of
     (Just d) -> return d
     Nothing -> (Left $ "Lookup err - can't find " ++ ident ++ " in  " ++ show defs)
-expHandler ident defs (ParenExp expr) = expHandler ident defs expr
-expHandler _ _ (IntegerExp i) = Right $ TInt i
-expHandler _ _ (BooleanExp b) = Right $ TBool b
-expHandler _ defs (VectorExp a b) = do
-    ua <- expHandler "" defs a
-    ub <- expHandler "" defs b
+expHandler defs (ParenExp expr) = expHandler defs expr
+expHandler _ (IntegerExp i) = Right $ TInt i
+expHandler _ (BooleanExp b) = Right $ TBool b
+expHandler defs (VectorExp a b) = do
+    ua <- expHandler defs a
+    ub <- expHandler defs b
     case (ua, ub) of
       ((TInt ia),(TInt ib)) -> return (TVec (ia, ib))
       _ -> Left $ "VectorExp err" ++ show a ++ " --- " ++ show b
 
-expHandler _ defs (ListExp expList) = do
-  mapped <- mapM ( expHandler "" defs ) expList
+expHandler defs (ListExp expList) = do
+  mapped <- mapM ( expHandler defs ) expList
   return $ TList mapped
 
-expHandler _ defs (SetExp expSet) = do
-  mapped <- mapM (expHandler "" defs) expSet
+expHandler defs (SetExp expSet) = do
+  mapped <- mapM (expHandler defs) expSet
   return $ TSet (Set.fromList mapped)
 
-expHandler _ defs (BinaryExp exp1 bop exp2) = do
-  e1 <- expHandler "" defs exp1
-  e2 <- expHandler "" defs exp2
+expHandler defs (BinaryExp exp1 bop exp2) = do
+  e1 <- expHandler defs exp1
+  e2 <- expHandler defs exp2
   binaryOperationHandler bop e1 e2
 
-expHandler _ defs (UnaryExp uop expr) = do
-  e <- expHandler "" defs expr
+expHandler defs (UnaryExp uop expr) = do
+  e <- expHandler defs expr
   unaryExpressionHandler uop e
 
-expHandler _ defs (LambdaExp strings _ block) = do
+expHandler defs (LambdaExp strings _ block) = do
   return $ TLambda defs (map (\(_,s)->s) strings) block
 
-expHandler identifier defs (ApplicationExp ident params) = do
-  lambda <- expHandler "" defs ident
+expHandler defs (ApplicationExp ident params) = do
+  lambda <- expHandler defs ident
   let (VariableExp sident) = ident
   let (TLambda env paramNames block) = lambda
   let newenv = Map.insert sident lambda env
-  curryHandler identifier newenv defs paramNames params block
+  curryHandler sident newenv defs paramNames params block
 
 
-expHandler _ defs (IfExp expr block1  block2) =
-  let (Right (TBool evaluated)) = expHandler "" defs expr in
+expHandler defs (IfExp expr block1  block2) =
+  let (Right (TBool evaluated)) = expHandler defs expr in
     if evaluated
       then blockHandler defs block1
       else blockHandler defs block2
 
-expHandler _ defs (CondExp ((expr,block):xs) otherwiseBlock) =
-  let (Right (TBool evaluated)) = expHandler "" defs expr in
+expHandler defs (CondExp ((expr,block):xs) otherwiseBlock) =
+  let (Right (TBool evaluated)) = expHandler defs expr in
     if evaluated
       then blockHandler defs block
-      else expHandler "" defs (CondExp xs otherwiseBlock)
-expHandler _ defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
+      else expHandler defs (CondExp xs otherwiseBlock)
+expHandler defs (CondExp [] otherwiseBlock) = blockHandler defs otherwiseBlock
 
 blockHandler :: Map String Value -> Block -> Either String Value
 blockHandler defs (Block ((Decl _ ident expr):xs) finalExp) =
-  case (expHandler ident defs expr) of
+  case (expHandler defs expr) of
     Left err -> Left $ "BlockHandler1 err: " ++ err
     Right handledExp -> blockHandler (Map.insert ident handledExp defs) (Block xs finalExp)
-blockHandler defs (Block [] finalExp) = expHandler "" defs finalExp
+blockHandler defs (Block [] finalExp) = expHandler defs finalExp
 
 
 curryHandler :: String -> Map String Value -> Map String Value -> [String] -> [Exp] -> Block -> Either String Value
 curryHandler identifier closureenv origenv (x:xs) (y:ys) block = do
-  evalled <- expHandler x origenv y
-  let newenv = Map.insert x evalled (Map.union closureenv origenv)
+  evalled <- expHandler origenv y
+  let newenv = Map.insert x evalled closureenv
   curryHandler identifier newenv origenv xs ys block
 
 curryHandler identifier closureenv _ e@(_:_) [] block =
-  expHandler identifier closureenv (LambdaExp (map (\x -> (TypeInt, x)) e) TypeInt block) --HACK!!
+  expHandler closureenv (LambdaExp (map (\x -> (TypeInt, x)) e) TypeInt block) --HACK!!
 curryHandler _ closureenv _ [] [] block = blockHandler closureenv block
 curryHandler _ _ _ [] (_:_) _ = Left "Too many args to function"
 
