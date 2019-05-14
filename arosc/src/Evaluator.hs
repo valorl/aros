@@ -15,7 +15,7 @@ data Value = TInt Int
            | TList [Value]
            | TSet (Set Value)
            | TGridSet (Set Value) Value
-           | TLambda (Map String Value) [String] Block
+           | TLambda (Map String Value) [(DeclType,String)] DeclType Block
            deriving (Show, Eq, Ord)
 
 
@@ -173,15 +173,15 @@ expHandler defs (UnaryExp uop expr) = do
   e <- expHandler defs expr
   unaryExpressionHandler uop e
 
-expHandler defs (LambdaExp strings _ block) = do
-  return $ TLambda defs (map (\(_,s)->s) strings) block
+expHandler defs (LambdaExp args retType block) = do
+  return $ TLambda defs args retType block
 
 expHandler defs (ApplicationExp ident params) = do
   lambda <- expHandler defs ident
   let (VariableExp sident) = ident
-  let (TLambda env paramNames block) = lambda
+  let (TLambda env paramNames retType block) = lambda
   let newenv = Map.insert sident lambda env
-  curryHandler newenv defs paramNames params block
+  curryHandler newenv defs paramNames params retType block
 
 
 expHandler defs (IfExp expr block1  block2) =
@@ -205,16 +205,16 @@ blockHandler defs (Block ((Decl _ ident expr):xs) finalExp) =
 blockHandler defs (Block [] finalExp) = expHandler defs finalExp
 
 
-curryHandler :: Map String Value -> Map String Value -> [String] -> [Exp] -> Block -> Either String Value
-curryHandler closureenv origenv (x:xs) (y:ys) block = do
+curryHandler :: Map String Value -> Map String Value -> [(DeclType,String)] -> [Exp] -> DeclType -> Block -> Either String Value
+curryHandler closureenv origenv ((_,x):xs) (y:ys) retType block = do
   evalled <- expHandler origenv y
   let newenv = Map.insert x evalled closureenv
-  curryHandler newenv origenv xs ys block
+  curryHandler newenv origenv xs ys retType block
 
-curryHandler closureenv _ e@(_:_) [] block =
-  expHandler closureenv (LambdaExp (map (\x -> (TypeInt, x)) e) TypeInt block) --HACK!!
-curryHandler closureenv _ [] [] block = blockHandler closureenv block
-curryHandler _ _ [] (_:_) _ = Left "Too many args to function"
+curryHandler closureenv _ e@(_:_) [] retType block =
+  return $ TLambda closureenv e retType block
+curryHandler closureenv _ [] [] _ block = blockHandler closureenv block
+curryHandler _ _ [] (_:_) _ _ = Left "Too many args to function"
 
 binaryOperationHandler :: BinaryOp -> Value -> Value -> Either String Value
 binaryOperationHandler Plus  (TInt i) (TInt j) = Right $ TInt $ i+j
