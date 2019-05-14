@@ -173,8 +173,8 @@ expHandler _ defs (UnaryExp uop expr) = do
   e <- expHandler "" defs expr
   unaryExpressionHandler uop e
 
-expHandler identifier defs (LambdaExp strings _ block) = do
-  return $ TLambda (Map.insert identifier (TLambda Map.empty [] (Block [] (IntegerExp 0))) defs) (map (\(_,s)->s) strings) block
+expHandler _ defs (LambdaExp strings _ block) = do
+  return $ TLambda defs (map (\(_,s)->s) strings) block
 
 expHandler identifier defs (ApplicationExp ident params) = do
   lambda <- expHandler "" defs ident
