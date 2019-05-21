@@ -1,5 +1,3 @@
--- |
-
 module Syntax where
 
 -- TOKENS
@@ -14,6 +12,7 @@ data Token = TokenIntLit Int
            | TokenVec
            | TokenBool
            | TokenGrid
+           | TokenRoute
            | TokenCrop
            | TokenAnd
            | TokenOr
@@ -48,18 +47,18 @@ data Token = TokenIntLit Int
            | TokenSemiColon
            | TokenIdent String
            | TokenEOF
-           deriving (Eq,Show)
+           deriving (Eq,Show, Ord)
 
 
-data Uop = Not | Head | Tail | Vecx | Vecy
-         deriving (Eq, Show)
+data UnaryOp = Not | Head | Tail | Vecx | Vecy
+         deriving (Eq, Show, Ord)
 
-data Bop = Plus
+data BinaryOp = Plus
   | Minus
   | Times
   | Div
-  | Colon
-  | PlusPlus
+  | Cons
+  | Append
   | Union
   | Intersection
   | Shift
@@ -71,44 +70,46 @@ data Bop = Plus
   | Gte
   | Lte
   | Equal
-  | NEqual
-  deriving (Eq, Show)
+  | NotEqual
+  deriving (Eq, Show, Ord)
 
 
-data Type = TypeInt
+data DeclType = TypeInt
   | TypeVec
   | TypeBool
-  | TypeList Type
-  | TypeSet Type
-  | TypeLambda [Type] Type
-  | TypeLambdaNoParam Type
-  deriving (Eq, Show)
+  | TypeList DeclType
+  | TypeSet DeclType
+  | TypeLambda [DeclType] DeclType
+  deriving (Eq, Show, Ord)
 
 
-data Declaration = Decl String Exp deriving Show
+data Declaration = Decl DeclType String Exp
+  deriving (Eq, Show, Ord)
 
 data Block = Block [Declaration] Exp
-  deriving Show
+  deriving (Eq, Show, Ord)
 
-data ExpBlock = ExpBlock Exp Block
-  deriving Show
-
-data Exp = Ident String
-  | IntLit Int
-  | BoolLit Bool
-  | Vec Exp Exp
+data Exp = VariableExp String
+  | ParenExp Exp
+  | IntegerExp Int
+  | BooleanExp Bool
+  | VectorExp Exp Exp
   | ListExp [Exp]
   | SetExp [Exp]
-  | Bopped Exp Bop Exp
-  | Uopped Uop Exp
-  | LambdaExp [String] Block
-  | FunctionAppl Exp [Exp]
+  | BinaryExp Exp BinaryOp Exp
+  | UnaryExp UnaryOp Exp
+  | LambdaExp [(DeclType,String)] DeclType Block
+  | ApplicationExp Exp [Exp]
   | IfExp Exp Block Block
-  | CondExp [ExpBlock] Block
-  deriving Show
+  | CondExp [(Exp, Block)] Block
+  deriving (Eq, Show, Ord)
 
-data Program = Prog [Declaration] Exp Exp
+data GridDef = GridDef Exp Exp
+  deriving (Eq, Show, Ord)
 
+data RobotRoute = RobotRoute Exp Exp
+  deriving (Eq, Show, Ord)
 
-
+data Program = Program [Declaration] GridDef RobotRoute
+  deriving (Eq, Show, Ord)
 

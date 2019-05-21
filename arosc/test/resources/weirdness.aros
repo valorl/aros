@@ -1,0 +1,11 @@
+((int -> vec) -> ((bool -> int) -> (bool -> vec))) f =
+((int -> vec) g) -> ((bool -> int) -> (bool -> vec)) {
+    ((bool -> int) h) -> (bool -> vec) {
+        (bool b) -> vec {
+        g(h(b))
+        }
+    }
+};
+
+grid <1,1>, {}
+route <1,1>, <2,2>

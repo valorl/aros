@@ -1,0 +1,4 @@
+(int -> int) myfunc = (int a) -> int { if (a == 1) { 1 } else { a + myfunc ( a - 1 ) } };
+int res = myfunc (100);
+grid <3,4>, {<1,res>}
+route <1,1>, <2,2>

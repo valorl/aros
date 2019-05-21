@@ -28,6 +28,7 @@ library:
   source-dirs: src
   dependencies:
     - array
+    - containers
 
 executables:
   arosc-exe:
