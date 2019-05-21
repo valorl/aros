@@ -1,7 +1,7 @@
 ## Terminals
 ```ebnf
 boolean     ::= "true" | "false"
-integer     ::= [-]?[1-9][0-9]*
+integer     ::= [-]?[1-9][0-9]* | 0
 identifier  ::= [a-z][a-zA-Z0-9_]*
 ```
 
@@ -45,32 +45,32 @@ Exp ::=
         | Exp Bop Exp
         | Uop Exp
         | Lambda
-        | FunctionApplication
-        | "if" "(" Exp ")" "{" Block "}" "else" "{" Block "}"
-        | "cond" "{" ["(" Exp ")" "{" Block "}"]+ "otherwise" "{" Block "}  " "}" 
+        | identifier Params
+        | "if" "(" Exp ")" Block "else" Block
+        | "cond" "{" ["(" Exp ")" Block]+ "otherwise" Block "}" 
 ```
 
 ### Expression helpers
 ```ebnf
-Args    ::= [identifier ","]* identifier | λ
-Params  ::= [Exp ","]* Exp | λ
+Params  ::= ([Exp ","]* Exp) | (λ)
+Block   ::= "{" Declaration Exp "}"
 
-Block   ::= Exp | Declaration Block
-Lambda              ::= Args "->" "{" Block "}"
-FunctionApplication ::= [identifier | Lambda] "(" Params ")"
+Lambda              ::= ([identifier ","]+ identifier) "->" Block
+                      | identifier "->" Block  
+                      | (λ) "->" Block
 ```
 
 ## Declarations
 ```ebnf
-Declaration ::= Type identifier "=" Exp ";"
+Declaration ::= Type identifier "=" Exp ";" Declaration | λ
 ```
 
 ## Grid
 ```ebnf
-GridDef ::= (Declaration | FuncDeclaration)* "grid" Exp Exp
+GridDef     ::= "grid" Exp, Exp
 ```
 
 ## Progam (root)
 ```ebnf
-Program ::= GridDef
+Program ::= GridDef Declaration
 ```

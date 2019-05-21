@@ -58,6 +58,7 @@ import Lexer
     id                                                        { TokenState _ (TokenIdent $$) }
 
 
+
 %right in
 %nonassoc '>' '<'
 %left ':' '++' '<>' '><' '>>' crop and or
@@ -178,6 +179,7 @@ ExpC : id                                                     { VariableExp $1 }
 
 GridDef ::                                                    { GridDef }
 GridDef : grid Exp ',' Exp                                    { GridDef $2 $4 }
+
 
 {
 

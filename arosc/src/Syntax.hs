@@ -112,3 +112,4 @@ data RobotRoute = RobotRoute Exp Exp
 
 data Program = Program [Declaration] GridDef RobotRoute
   deriving (Eq, Show, Ord)
+
