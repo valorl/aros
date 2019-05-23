@@ -19,11 +19,18 @@ data Value = TInt Int
            deriving (Show, Eq, Ord)
 
 
-onlyGrid :: Either String Program
-onlyGrid = Parser.parseAros "" "grid <10,10>, { <1,1>, <2,1> } routeRobot <0,0>, <9,9>"
+recCurried :: Either String Program
+recCurried = Parser.parseAros "" "\
+  \(int, int -> int) myfunc = (int a, int b) -> int {\
+  \  if (b <= 1) { 1 }\
+  \  else { b + myfunc ( a, b - a ) }\
+  \};\
+  \(int->int) curried = myfunc(1);\
+  \int res = curried ( 100 );\
+  \grid <10,10>, {<1,res>} route <0,1>, <8,8>"
 
 et :: IO ()
-et = putStr $ evalTree onlyGrid
+et = putStr $ evalTree recCurried
 
 -- start point, checks that program was evaluated ok
 evalTree :: Either String Program -> String
