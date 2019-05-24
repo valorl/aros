@@ -102,7 +102,7 @@ handleRobot :: (Set Value) -> Value -> Value -> Value -> Either String String
 handleRobot playmap playsize (TVec start) (TVec end) = do
   let (TVec (x,y)) = playsize
   let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
-  let obstacles = map (\(TVec vc) -> vc) $ Set.toList playmap
+  let obstacles = Set.map (\(TVec vc) -> vc) playmap
   let freeSquares = filter ( `notElem` obstacles ) allVecs
   let allEdges = filter ( \((x1,y1),(x2,y2)) -> (abs (x1 - x2) + abs (y1 - y2)) == 1 ) $ cartesianProd freeSquares freeSquares
   case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
