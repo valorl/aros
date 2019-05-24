@@ -124,14 +124,14 @@ pathRobot graph fifo visited end
     let restOfFifo = Seq.deleteAt 0 fifo
     if chead == end then
       Right $ [h]
-      else if (chead `Set.member` visited) then
+    else if (chead `Set.member` visited) then
       pathRobot graph restOfFifo visited end
-      else do
-        let updatedVisited = Set.insert chead visited
-        let toAddToFifo = map (\(_,y) -> y) $ filter (\(x,_) -> chead == x ) graph
-        let updatedfifo = restOfFifo Seq.>< (Seq.fromList $ map (\x -> (chead,x)) toAddToFifo)
-        result <- pathRobot graph updatedfifo updatedVisited end
-        return $ h : result
+    else do
+      let updatedVisited = Set.insert chead visited
+      let toAddToFifo = map (\(_,y) -> y) $ filter (\(x,_) -> chead == x ) graph
+      let updatedfifo = restOfFifo Seq.>< (Seq.fromList $ map (\x -> (chead,x)) toAddToFifo)
+      result <- pathRobot graph updatedfifo updatedVisited end
+      return $ h : result
 
 
 
