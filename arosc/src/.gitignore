@@ -3,3 +3,11 @@ HParser.hs
 Lexer.hs
 Parser.hs
 Parser.info
+Evaluator.hi
+Evaluator.o
+Lexer.hi
+Lexer.o
+Parser.hi
+Parser.o
+Syntax.hi
+Syntax.o

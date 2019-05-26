@@ -2,6 +2,7 @@ module Main where
 
 import System.Environment
 
+import Evaluator (evalTree)
 import Parser (parseAros)
 import Checker (runChecker)
 
@@ -30,5 +31,8 @@ main = do
 
 
 
+-- =======
+--  putStrLn $ evalTree $ result
+-- >>>>>>> evaluator
   -- let ast = (parseAros . lexAros) code
   -- pPrint ast

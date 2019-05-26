@@ -1,0 +1,6 @@
+((int -> int), int -> int) myfunc = ((int -> int) f, int x) -> int { f(x) };
+(int -> int) double = (int x) -> int { 2 * x };
+int res = myfunc(double, 210);
+grid <3,4>,{<0,res>}
+route <1,1>, <2,2>
+
