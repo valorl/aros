@@ -12,11 +12,11 @@ import Text.Show.Pretty (ppShow, pPrint)
 main :: IO ()
 main = do
   args <- getArgs
-  parsed <- case args of
+  result <- case args of
               []  -> fmap (parseAros "<stdin>") getContents
               [f] -> fmap (parseAros f) (readFile f)
               _   -> error $ "Expected 0 or 1 arguments, but got " ++ (show $ length $ args)
-  case parsed of
+  case result of
     (Left error) -> putStrLn error
     (Right program) -> do
       putStrLn "==================== AST ====================="
@@ -28,11 +28,5 @@ main = do
       mapM_ print log
       putStrLn ("Typecheck " <> if programOk then "OK" else "ERROR")
       putStrLn "============== END OF TYPECHECK =============="
+      putStrLn $ evalTree $ result
 
-
-
--- =======
---  putStrLn $ evalTree $ result
--- >>>>>>> evaluator
-  -- let ast = (parseAros . lexAros) code
-  -- pPrint ast
