@@ -190,18 +190,23 @@ checkExp env exp = case exp of
       let isFunc = case tFn of
                      TFunction _ _ -> True
                      otherwise -> False
-      when (not isFunc) $
-        lift $ logErr $ "Invalid application expression: Expected a function but got " <> (show tFn)
+      when (not isFunc) $ lift $ logErr $
+          "Invalid application expression: Expected a function but got " <> (show tFn)
       let (TFunction tFnParams tOut) = tFn
       tParams <- mapM (checkExp env) params
-      let paramsOk = tParams == tFnParams
-      when (not paramsOk) $
-        lift $ logErr $
-          "Invalid application expression: Provided parameters (" <> (show tParams)
-          <> ") do not match the function" <> (show tFn)
+      let paramsOk = tParams == (take (length tParams) tFnParams)
+      when (not paramsOk) $ lift $ logErr $
+          "Invalid application expression: Function (" <> (show tFn)
+          <> ") applied with invalid parameter list" <> (show tParams)
+      let curried = (length tParams) < (length tFnParams)
       if isFunc && paramsOk
-      then return tOut
+      then return $
+        if (length tParams) < (length tFnParams)
+        then TFunction (drop (length tParams) tFnParams) tOut
+        else tOut
       else mzero
+
+
 
 checkProgram :: Environment -> Program -> MWBool
 checkProgram env (Program decs grid route) = do
