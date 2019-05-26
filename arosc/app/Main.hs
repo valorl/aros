@@ -1,6 +1,7 @@
 module Main where
 
 import System.Environment
+import System.Exit
 
 import Evaluator (evalTree)
 import Parser (parseAros)
@@ -25,8 +26,13 @@ main = do
       putStrLn ""
       putStrLn "================== TYPECHECK ================="
       let (programOk, proglog) = runChecker program
+      putStrLn ("Typecheck " <> if programOk then "OK" else "NOT OK")
       mapM_ print proglog
-      putStrLn ("Typecheck " <> if programOk then "OK" else "ERROR")
       putStrLn "============== END OF TYPECHECK =============="
-      putStrLn $ evalTree $ result
-
+      if not programOk
+      then exitFailure
+      else do
+        putStrLn ""
+        putStrLn "=================== RESULT ==================="
+        putStrLn $ evalTree $ result
+        exitSuccess

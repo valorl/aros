@@ -22,3 +22,8 @@ instance Eq Type where
   (==) TAny _ = True
   (==) _ TAny = True
   (==) _ _ = False
+
+selectNotAny :: Type -> Type -> Type
+selectNotAny TAny t2 = t2
+selectNotAny t1 TAny = t1
+selectNotAny t1 t2 = error $ "Cannot select between " <> (show t1) <> " and " <> (show t2)

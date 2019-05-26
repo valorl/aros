@@ -60,9 +60,15 @@ type WBool = Writer [LogMsg] Bool
 runChecker :: Program -> (Bool, [LogMsg])
 runChecker prg =
   case result of
-    Just r -> (r, log)
+    Just r ->  if (anyError log)
+               then (False, log)
+               else (r, log)
     Nothing -> (False, log)
   where (result, log) = runWriter $ runMaybeT $ checkProgram mempty prg
+        errors = [ err | err@(Error _) <- log]
+        anyError log = (length errors) > 0
+
+
 
 
 
@@ -199,9 +205,7 @@ checkExp env exp = case exp of
 
 checkProgram :: Environment -> Program -> MWBool
 checkProgram env (Program decs grid route) = do
-  let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
-  lift $ checkDeclarations env decs
-  let localEnv = M.union (M.fromList(varTypes)) env
+  localEnv <- lift $ checkDeclarations env decs
   gridOk <- checkGrid localEnv grid
   routeOk <- checkRoute localEnv route
   return $ gridOk && routeOk
@@ -315,7 +319,7 @@ checkListBinaryConsOp t1 op t2 = do
                   otherwise -> False
   let (TList t) = t2
   if opOk && isList && (t1 == t)
-  then return t2
+  then return $ TList t1
   else mzero
 
 checkListBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
@@ -324,8 +328,10 @@ checkListBinaryOp t1 op t2 = do
   let isList x = case x of
                   TList _ -> True
                   otherwise -> False
-  if opOk && (isList t1) && (isList t2) && (t1 == t2)
-  then return t1
+  let (TList inner1) = t1
+  let (TList inner2) = t2
+  if opOk && (isList t1) && (isList t2) && (inner1 == inner2)
+  then return $ TList (selectNotAny inner1 inner2)
   else mzero
 
 checkSetVecBinaryOp :: Type -> BinaryOp -> Type -> Maybe Type
@@ -342,20 +348,20 @@ checkSetBinaryOp t1 op t2 = do
   let isSet x = case x of
                   TSet _ -> True
                   otherwise -> False
-  if opOk && (isSet t1) && (isSet t2) && (t1 == t2)
-  then return t1
+  let (TSet inner1) = t1
+  let (TSet inner2) = t2
+  if opOk && (isSet t1) && (isSet t2) && (inner1 == inner2)
+  then return $ TSet (selectNotAny inner1 inner2)
   else mzero
 
 
 -- BLOCK
 checkBlock :: Environment -> Block -> MWType
-checkBlock env (Block decs body) = do
-  let varTypes = map (\(Decl dt name _) -> (name, (convertDeclType dt))) decs
-  lift $ checkDeclarations env decs
-  let localEnv = M.union (M.fromList(varTypes)) env
-  checkExp localEnv body
+checkBlock env (Block decs exp) = do
+  localEnv <- lift $ checkDeclarations env decs
+  checkExp localEnv exp
 
-checkDeclaration :: Environment -> Declaration -> WBool
+checkDeclaration :: Environment -> Declaration -> Writer [LogMsg] ()
 checkDeclaration env (Decl dt name exp) = do
   let expType = convertDeclType dt
   let env' = case expType of
@@ -367,20 +373,16 @@ checkDeclaration env (Decl dt name exp) = do
       let typeOk = expType == t
       when (not typeOk) $
         logErr $ "Invalid declaration: Expected " <> (show expType) <> " but got " <> (show t)
-      return typeOk
-    Nothing -> return False
+    Nothing -> return ()
 
-checkDeclarations :: Environment -> [Declaration] -> Writer [LogMsg] ()
-checkDeclarations env decs = foldM_ folder ([],env) decs
+checkDeclarations :: Environment -> [Declaration] -> Writer [LogMsg] Environment
+checkDeclarations env decs = foldM folder env decs
   where
-    folder :: ([Bool], Environment) -> Declaration -> Writer [LogMsg] ([Bool], Environment)
-    folder (res, env') dec@(Decl dt name _) = do
+    folder :: Environment -> Declaration -> Writer [LogMsg] Environment
+    folder env' dec@(Decl dt name _) = do
       let t = convertDeclType dt
-      decOk <- checkDeclaration env' dec
-      let env'' = if decOk
-                  then M.insert name t env'
-                  else env'
-      return (res ++ [decOk], env'')
+      checkDeclaration env' dec
+      return (M.insert name t env')
 
 
 -- -- TODO
