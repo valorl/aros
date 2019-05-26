@@ -180,7 +180,6 @@ ExpC : id                                                     { VariableExp $1 }
 GridDef ::                                                    { GridDef }
 GridDef : grid Exp ',' Exp                                    { GridDef $2 $4 }
 
-
 {
 
 

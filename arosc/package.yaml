@@ -29,6 +29,9 @@ library:
   dependencies:
     - array
     - containers
+    - pretty-show
+    - mtl
+    - transformers
 
 executables:
   arosc-exe:
