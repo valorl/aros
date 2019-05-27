@@ -101,7 +101,8 @@ handleRobot playmap playsize (TVec start) (TVec end) = do
   let (TVec (x,y)) = playsize
   let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
   let obstacles = Set.map (\(TVec vc) -> vc) playmap
-  let withNeighbours = foldr (\l1 l2 -> l1 ++ l2) [] $ map neighboursForVector allVecs
+  let filteredAllVecs = filter (`notElem` obstacles) allVecs
+  let withNeighbours = foldr (\l1 l2 -> l1 ++ l2) [] $ map neighboursForVector filteredAllVecs
   let allEdges = filter (\(_,v) -> v `notElem` obstacles) withNeighbours
   case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
     (Right res) -> Right $ instructionsMaker $ reverse $ followParents res end
