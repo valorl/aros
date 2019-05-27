@@ -74,9 +74,6 @@ followParents paths node
   where
     (p,_) = head $ filter (\(_,h) -> h == node) paths
 
--- self explanatory
-cartesianProd :: [a] -> [b] -> [(a,b)]
-cartesianProd xs ys = [ (a,b) | a <- xs, b <- ys ]
 
 -- gives direction from vec1 to vec2
 -- x up   -> down
@@ -95,6 +92,7 @@ instructionsMaker (x:y:xs) = directionToGoMaker x y ++ " " ++ instructionsMaker 
 instructionsMaker [_] = "Done."
 instructionsMaker _ = "Empty."
 
+
 -- creates a list of all vectors on the map, then removes the unavailable ones
 -- from the remaining vectors we can make edges between neighboring vectors
 -- finally computes and returns the fastest route for the robot
@@ -103,11 +101,17 @@ handleRobot playmap playsize (TVec start) (TVec end) = do
   let (TVec (x,y)) = playsize
   let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
   let obstacles = Set.map (\(TVec vc) -> vc) playmap
-  let freeSquares = filter ( `notElem` obstacles ) allVecs
-  let allEdges = filter ( \((x1,y1),(x2,y2)) -> (abs (x1 - x2) + abs (y1 - y2)) == 1 ) $ cartesianProd freeSquares freeSquares
+  let withNeighbours = foldr (\l1 l2 -> l1 ++ l2) [] $ map neighboursForVector allVecs
+  let allEdges = filter (\(_,v) -> v `notElem` obstacles) withNeighbours
   case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
     (Right res) -> Right $ instructionsMaker $ reverse $ followParents res end
     (Left err) -> Left err
+  where
+    neighboursForVector :: (Num a) => (a,a) -> [((a,a),(a,a))]
+    neighboursForVector x@(a,b) =
+       map (\y->(x,y)) [(a,b-1),(a,b+1),(a-1,b),(a+1,b)]
+    cartesianProd :: [a] -> [b] -> [(a,b)]
+    cartesianProd xs ys = [ (a,b) | a <- xs, b <- ys ]
 handleRobot _ _ _ _ = Left "Robot err"
 
 -- using a fifo queue
