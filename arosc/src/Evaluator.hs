@@ -93,49 +93,32 @@ instructionsMaker [_] = "Done."
 instructionsMaker _ = "Empty."
 
 
--- creates a list of all vectors on the map, then removes the unavailable ones
--- from the remaining vectors we can make edges between neighboring vectors
--- finally computes and returns the fastest route for the robot
 handleRobot :: (Set Value) -> Value -> Value -> Value -> Either String String
-handleRobot playmap playsize (TVec start) (TVec end) = do
-  let (TVec (x,y)) = playsize
-  let allVecs = cartesianProd [0..(x-1)] [0..(y-1)]
+handleRobot playmap (TVec mapsize) (TVec start) (TVec end) = do
   let obstacles = Set.map (\(TVec vc) -> vc) playmap
-  let filteredAllVecs = filter (`notElem` obstacles) allVecs
-  let withNeighbours = foldr (\l1 l2 -> l1 ++ l2) [] $ map neighboursForVector filteredAllVecs
-  let allEdges = filter (\(_,v) -> v `notElem` obstacles) withNeighbours
-  case pathRobot allEdges (Seq.empty Seq.|> ((-1,-1),start)) Set.empty end of
+  case pathRobot mapsize obstacles (Seq.empty Seq.|> ((-1,-1),start)) end of
     (Right res) -> Right $ instructionsMaker $ reverse $ followParents res end
     (Left err) -> Left err
-  where
-    neighboursForVector :: (Num a) => (a,a) -> [((a,a),(a,a))]
-    neighboursForVector x@(a,b) =
-       map (\y->(x,y)) [(a,b-1),(a,b+1),(a-1,b),(a+1,b)]
-    cartesianProd :: [a] -> [b] -> [(a,b)]
-    cartesianProd xs ys = [ (a,b) | a <- xs, b <- ys ]
 handleRobot _ _ _ _ = Left "Robot err"
 
 -- using a fifo queue
 -- pops the head
--- checks that it hasn't been already visited
 -- puts the neighbors in the back of the queue with itself as parent
 -- continues until finish is found (or queue empty)
 -- path will later be found by tracing parents
-pathRobot :: (Show a, Ord a) => [((a,a),(a,a))] -> Seq ((a,a),(a,a)) -> Set (a,a) -> (a,a) -> Either String [((a,a),(a,a))]
-pathRobot graph fifo visited end
+pathRobot :: (Show a, Ord a, Num a) => (a,a) -> Set (a,a) -> Seq ((a,a),(a,a)) -> (a,a) -> Either String [((a,a),(a,a))]
+pathRobot mapsize@(mapx,mapy) obstacles fifo end
   | Seq.length fifo == 0 = Left "No path"
   | otherwise = do
-    let h@(_,chead) = fifo `Seq.index` 0
+    let h@(_,chead@(xc,yc)) = fifo `Seq.index` 0
     let restOfFifo = Seq.deleteAt 0 fifo
     if chead == end then
       Right $ [h]
-    else if (chead `Set.member` visited) then
-      pathRobot graph restOfFifo visited end
     else do
-      let updatedVisited = Set.insert chead visited
-      let toAddToFifo = map (\(_,y) -> y) $ filter (\(x,_) -> chead == x ) graph
+      let updatedObstacles = Set.insert chead obstacles
+      let toAddToFifo = filter (\n@(x,y) -> x>=0 && y>=0 && x<mapx && y<mapy && n `notElem` obstacles ) [(xc-1,yc),(xc+1,yc),(xc,yc-1),(xc,yc+1)]
       let updatedfifo = restOfFifo Seq.>< (Seq.fromList $ map (\x -> (chead,x)) toAddToFifo)
-      result <- pathRobot graph updatedfifo updatedVisited end
+      result <- pathRobot mapsize updatedObstacles updatedfifo end
       return $ h : result
 
 
