@@ -1,0 +1,12 @@
+(int -> {vec}) makeVerticalLineOfSize = (int a) -> {vec} {
+     if ( a <= 0 ) {
+        {<0,0>}
+     } else {
+        {<a,0>} <> makeVerticalLineOfSize(a - 1)
+     }
+};
+
+
+
+grid <3,4>, {<1,2>}
+route <1,1>, <2,2>
