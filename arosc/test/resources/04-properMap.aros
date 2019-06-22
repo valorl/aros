@@ -1,0 +1,17 @@
+(int -> {vec}) makeHorizontalLineOfSize = (int a) -> {vec} {
+     if ( a <= 0 ) {
+        {<0,0>}
+     } else {
+        {<0,a>} <> makeHorizontalLineOfSize(a - 1)
+     }
+};
+
+{vec} line = makeHorizontalLineOfSize(5);
+
+{vec} obstacles =
+   ( line >> <1,0> ) <>
+   ( line >> <3,1> ) <>
+   ( line >> <5,0> );
+
+grid <7,7>, obstacles
+route <0,0>, <6,0>

@@ -1,1 +1,4 @@
-grid < 2 , 4 > , { <1,1> } route [ <1,1> ]
+int myint = 5 + 3;
+vec thevec = <myint,2>;
+grid <4,4>, place
+route <1,1>, <2,2>

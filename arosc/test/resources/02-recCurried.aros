@@ -1,0 +1,11 @@
+(int, int -> int) myfunc = (int a, int b) -> int {
+   if (b <= 1) {
+      1
+   } else {
+      b + myfunc ( a, b - a )
+   }
+};
+(int->int) curried = myfunc(1);
+int res = curried ( 100 );
+grid <10,10>, {<1,res>}
+route <0,1>, <8,8>

@@ -1,0 +1,30 @@
+((int -> vec) -> ((bool -> int) -> (bool -> vec))) f =
+((int -> vec) g) -> ((bool -> int) -> (bool -> vec)) {
+    ((bool -> int) h) -> (bool -> vec) {
+        (bool b) -> vec {
+        g(h(b))
+        }
+    }
+};
+
+(int -> vec) f_int_vec = (int x) -> vec {
+    <x,x>
+};
+    
+((bool -> int) -> (bool -> vec)) f_converter = f(f_int_vec);
+        
+(bool -> int) f_bool_int =
+    (bool b) -> int {
+        if(b){
+            1
+        }
+        else{
+            0
+        }
+    };
+
+(bool -> vec) f_bool_vec = f_converter(f_bool_int);
+
+
+grid <1,1>, {}
+route <1,1>, <2,2>
