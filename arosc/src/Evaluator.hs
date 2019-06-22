@@ -18,6 +18,9 @@ data Value = TInt Int
            | TLambda (Map String Value) [(DeclType,String)] DeclType Block
            deriving (Show, Eq, Ord)
 
+--                           Playsize   Obstacles     Start       End         Route
+data EvalResult = EvalResult (Int, Int) [(Int, Int)] ((Int, Int), (Int, Int)) String
+
 
 recCurried :: Either String Program
 recCurried = Parser.parseAros "" "\
@@ -30,20 +33,29 @@ recCurried = Parser.parseAros "" "\
   \grid <10,10>, {<1,res>} route <0,1>, <8,8>"
 
 et :: IO ()
-et = putStr $ evalTree recCurried
+et = do
+  let (Right res) = evalTree recCurried
+  putStr $ pprintResult res
+
+pprintResult :: EvalResult -> String
+pprintResult (EvalResult playsize obstacles (start, end) path) =
+  "map size " ++ show playsize ++ "\n" ++
+  "obstacles " ++ show obstacles ++ "\n" ++
+  "start->end " ++ show start ++ "->" ++ show end ++ "\n" ++
+  path ++ "\n"
 
 -- start point, checks that program was evaluated ok
-evalTree :: Either String Program -> String
+evalTree :: Either String Program -> Either String EvalResult
 evalTree (Right (Program decls grid wpts)) =
   case evaluateProgram Map.empty decls grid wpts of
-    (Right x) -> x
-    (Left err) -> err
-evalTree (Left _) = "Program wasn't parsed correctly"
+    (Right x) -> Right x
+    (Left err) -> Left err
+evalTree (Left _) = Left "Program wasn't parsed correctly"
 
 -- recurses through definitions, adding them to dict
 -- then evaluates the robot route
 -- finally pretty prints the info
-evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> RobotRoute -> Either String String
+evaluateProgram :: Map String Value -> [Declaration] -> GridDef -> RobotRoute -> Either String EvalResult
 evaluateProgram defs ((Decl _ ident expr):xs) grd wpts =
   case (expHandler defs expr) of
     Right computedDecl -> evaluateProgram (Map.insert ident computedDecl defs) xs grd wpts
@@ -54,11 +66,7 @@ evaluateProgram defs [] grd wpts = do
   let (Right end@(TVec tend)) = expHandler defs e2
   let (Right (TGridSet playmap playsize@(TVec tplaysize))) = handleGrid grd defs
   resultPath <- handleRobot playmap playsize start end
-  return $
-    "map size " ++ show tplaysize ++ "\n" ++
-    "obstacles " ++ (show $ map (\(TVec x) -> x) $ Set.toList playmap) ++ "\n" ++
-    "start->end " ++ show tstart ++ "->" ++ show tend ++ "\n" ++
-    resultPath ++ "\n"
+  return $ EvalResult tplaysize ( map (\(TVec x) -> x ) $ Set.toList playmap ) (tstart, tend) resultPath
 
 
 ------ ROBOT STUFF -----

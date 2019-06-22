@@ -3,7 +3,7 @@ module Main where
 import System.Environment
 import System.Exit
 
-import Evaluator (evalTree)
+import Evaluator (evalTree, pprintResult)
 import Parser (parseAros)
 import Checker (runChecker)
 
@@ -34,5 +34,10 @@ main = do
       else do
         putStrLn ""
         putStrLn "=================== RESULT ==================="
-        putStrLn $ evalTree $ result
-        exitSuccess
+        case (evalTree result) of
+           (Right res) -> do
+              putStrLn $ pprintResult res
+              exitSuccess
+           (Left err) -> do
+              putStrLn err
+              exitSuccess
